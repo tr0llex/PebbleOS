@@ -35,6 +35,7 @@ static const char *s_hrm_interval_labels[] = {
 enum SettingsHealthItem {
   SettingsHealthTrackingEnabled,
   SettingsHealthUnitDistance,
+  SettingsHealthMoveReminder,
 #ifdef CONFIG_HRM
   SettingsHealthHRMonitoringInterval,
   SettingsHealthHRActivityTracking,
@@ -106,6 +107,11 @@ static void prv_draw_row_cb(SettingsCallbacks *context, GContext *ctx, const Lay
     case SettingsHealthTrackingEnabled: {
       title = i18n_noop("Health Tracking");
       subtitle = activity_prefs_tracking_is_enabled() ? i18n_noop("On") : i18n_noop("Off");
+      break;
+    }
+    case SettingsHealthMoveReminder: {
+      title = i18n_noop("Move Reminder");
+      subtitle = move_reminder_is_enabled() ? i18n_noop("On") : i18n_noop("Off");
       break;
     }
     case SettingsHealthUnitDistance: {
@@ -186,6 +192,9 @@ static void prv_select_click_cb(SettingsCallbacks *context, uint16_t row) {
       shell_prefs_set_units_distance(unit);
       break;
     }
+    case SettingsHealthMoveReminder:
+      move_reminder_set_enabled(!move_reminder_is_enabled());
+      break;
 #ifdef CONFIG_HRM
     case SettingsHealthHRMonitoringInterval:
       prv_hrm_interval_menu_push((SettingsHealthData *)context);
