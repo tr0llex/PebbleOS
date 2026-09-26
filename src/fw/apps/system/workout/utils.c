@@ -140,7 +140,11 @@ bool workout_utils_find_ongoing_activity_session(ActivitySession *session_out) {
       app_zalloc_check(sizeof(ActivitySession) * ACTIVITY_MAX_ACTIVITY_SESSIONS_COUNT);
   activity_get_sessions(&num_sessions, sessions);
 
-  for (int i = num_sessions; i >= 0; i--) {
+  // Was `i = num_sessions`, so the first iteration read one past the last
+  // filled entry. While there are fewer sessions than the limit that entry is
+  // the zeroed tail of app_zalloc and nothing shows; once the array is full,
+  // the read runs past the end of the allocation.
+  for (int i = (int)num_sessions - 1; i >= 0; i--) {
     if (workout_service_is_workout_type_supported(sessions[i].type) && sessions[i].ongoing) {
       if (session_out) {
         memcpy(session_out, &sessions[i], sizeof(ActivitySession));
