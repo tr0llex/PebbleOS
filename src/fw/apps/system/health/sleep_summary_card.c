@@ -260,7 +260,9 @@ Layer *health_sleep_summary_card_create(HealthData *health_data) {
     .health_data = health_data,
 #if DISP_ROWS > LEGACY_2X_DISP_ROWS
     .number_font = fonts_get_system_font(FONT_KEY_LECO_32_BOLD_NUMBERS),
-    .unit_font = fonts_get_system_font(FONT_KEY_LECO_26_BOLD_NUMBERS_AM_PM),
+    // LECO holds digits and Latin only, so a translated unit renders as
+    // boxes; Gothic takes glyphs from the language pack.
+    .unit_font = fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD),
 #else
     .number_font = fonts_get_system_font(FONT_KEY_LECO_26_BOLD_NUMBERS_AM_PM),
     .unit_font = fonts_get_system_font(FONT_KEY_LECO_20_BOLD_NUMBERS),
