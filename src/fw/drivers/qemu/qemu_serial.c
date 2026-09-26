@@ -14,6 +14,9 @@
 #include "pbl/services/activity/activity_private.h"
 #include "pbl/services/clock.h"
 #include "pbl/services/hrm/hrm_manager.h"
+#ifdef CONFIG_SERVICE_WELLBEING
+#include "pbl/services/wellbeing/wellbeing.h"
+#endif
 #include "system/hexdump.h"
 #include <pbl/logging/logging.h>
 #include "system/passert.h"
@@ -218,6 +221,9 @@ static const QemuMessageHandler s_qemu_endpoints[] = {
   {QemuProtocol_ContentSize, prv_content_size_msg_callback},
   {QemuProtocol_HealthMetric, prv_health_metric_msg_callback},
   {QemuProtocol_HeartRate, prv_heart_rate_msg_callback},
+#ifdef CONFIG_SERVICE_WELLBEING
+  {QemuProtocol_WellbeingDemo, readiness_qemu_demo_msg_callback},
+#endif
   // Button messages are handled by QEMU directly
 };
 
