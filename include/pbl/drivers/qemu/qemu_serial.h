@@ -27,6 +27,9 @@ typedef enum {
   QemuProtocol_ContentSize = 11,
   QemuProtocol_HealthMetric = 12,
   QemuProtocol_HeartRate = 13,
+  //! Stand-in history for the readiness app. The number is kept far from the
+  //! upstream sequence so a protocol added there never lands on it.
+  QemuProtocol_WellbeingDemo = 200,
 } QemuProtocol;
 
 // ---------------------------------------------------------------------------------------
@@ -129,6 +132,11 @@ typedef struct PBL_PACKED {
   uint8_t bpm;
   int8_t quality; // HRMQuality (signed: HRMQuality_OffWrist is -1)
 } QemuProtocolHeartRateHeader;
+
+// QemuProtocol_WellbeingDemo
+typedef struct PBL_PACKED {
+  uint8_t scenario; // ReadinessDemoScenario, see pbl/services/wellbeing/wellbeing.h
+} QemuProtocolWellbeingDemoHeader;
 
 // ---------------------------------------------------------------------------------------
 // API
