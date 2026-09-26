@@ -333,6 +333,11 @@ typedef struct KAlgState {
   int16_t summary_mean[KALG_N_AXES];
   uint32_t summary_pim[KALG_N_AXES]; // pim: "Proportional Integral Mode"
 
+  // Share of this epoch's motion that lies along gravity, in percent. Walking
+  // drives the wrist up and down; a hand moving on its own with the body still
+  // does not.
+  uint8_t vertical_share_pct;
+
   // epoch index, mod 256. Used for subtracting an average of 0.5 from the step count
   uint8_t epoch_idx;
 
@@ -1019,6 +1024,22 @@ static uint16_t prv_compute_scores(int16_t *d, uint32_t real_vmc_5s, int16_t d_l
 
 // -----------------------------------------------------------------------------------------
 // Return true if the score and vmc combination indicate that the user is stepping
+// Below this share of motion along gravity an epoch is not counted as steps.
+// 0 turns the check off.
+//
+// Chosen by sweeping the algorithm fixtures (63 recordings):
+//   threshold  0: 310 false steps, walking error 1840 of 27960, 0 out of tolerance
+//   threshold  6: 243 false steps, walking error 1840 of 27960, 0 out of tolerance
+//   threshold  7: 238 false steps, walking error 1840 of 27960, 0 out of tolerance
+//   threshold  8: 226 false steps, walking error 1868 of 27960, 1 out of tolerance
+//   threshold 20: 109 false steps, walking error 3839 of 27960, 32 out of tolerance
+// 7 is the last threshold whose walking error equals the one the filter-off case
+// gives, so real walking is untouched while a quarter of the false steps are
+// gone. At 8 a real walking recording falls out of tolerance.
+#ifndef KALG_MIN_VERTICAL_SHARE_PCT
+#define KALG_MIN_VERTICAL_SHARE_PCT 7
+#endif
+
 static bool prv_is_stepping(KAlgState *state, uint16_t max_mag_hz, uint16_t score_0,
                             uint16_t score_high_freq, uint16_t score_low_freq, uint32_t real_vmc_5s,
                             int32_t total_energy, bool *partial_steps) {
@@ -1085,6 +1106,22 @@ static bool prv_is_stepping(KAlgState *state, uint16_t max_mag_hz, uint16_t scor
     if ((score_0 >= k_partial_min_score) && (real_vmc_5s >= k_partial_min_vmc)) {
       *partial_steps = true;
     }
+  }
+
+  // Ignore when almost none of the motion runs along gravity: that is a hand
+  // moving by itself while the body stays put.
+  //
+  // The check sits AFTER the partial-epoch handling, not before it. Clearing
+  // is_stepping before that handling did not cancel the epoch: it turned it
+  // into the start of a walk, and its steps were counted anyway. The sweep
+  // confirms it (63 recordings, threshold 7):
+  //   before: 245 false steps, walking error 1849, 0 out of tolerance
+  //   after:  238 false steps, walking error 1840, 0 out of tolerance
+  // The walking error equals the filter-off case either way, so real walking
+  // is untouched.
+  if (KALG_MIN_VERTICAL_SHARE_PCT > 0 && state->vertical_share_pct < KALG_MIN_VERTICAL_SHARE_PCT) {
+    is_stepping = false;
+    *partial_steps = false;
   }
 
   return is_stepping;
@@ -1200,10 +1237,16 @@ static uint32_t prv_analyze_epoch(KAlgState *state) {
   // 5 sec proportional integral mode (pim), used by the steps calculation
   uint32_t pim_epoch[KALG_N_AXES] = {0};
 
+  // Which axis gravity is on, and how much of the motion runs along it. The
+  // watch is worn every which way, so the vertical is taken from the data (the
+  // axis with the largest mean) rather than assumed.
+  int32_t epoch_mean[KALG_N_AXES];
+
   // Calculate the axis metrics
   for (int16_t axis = 0; axis < KALG_N_AXES; axis++) {
     // add the local mean to the global mean array, additively
-    state->summary_mean[axis] += prv_mean(state->accel_samples[axis], state->num_samples, 1);
+    epoch_mean[axis] = prv_mean(state->accel_samples[axis], state->num_samples, 1);
+    state->summary_mean[axis] += epoch_mean[axis];
 
     // calculate the proportional integral mode (pim) for each second:
     // KALG_N_SAMPLES_EPOCH / KALG_SAMPLE_HZ = num of seconds in epoch
@@ -1218,6 +1261,20 @@ static uint32_t prv_analyze_epoch(KAlgState *state) {
       state->summary_pim[axis] += pim;
       pim_epoch[axis] += pim;
     }
+  }
+
+  {
+    int32_t biggest = 0;
+    int16_t gravity_axis = 0;
+    for (int16_t axis = 0; axis < KALG_N_AXES; axis++) {
+      const int32_t magnitude = (epoch_mean[axis] < 0) ? -epoch_mean[axis] : epoch_mean[axis];
+      if (magnitude > biggest) {
+        biggest = magnitude;
+        gravity_axis = axis;
+      }
+    }
+    const uint32_t total = pim_epoch[0] + pim_epoch[1] + pim_epoch[2];
+    state->vertical_share_pct = total ? (uint8_t)((pim_epoch[gravity_axis] * 100) / total) : 0;
   }
 
   // Calculate the magnitude of the FFT. We will compute the FFT of each axis independently and
