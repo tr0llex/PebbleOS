@@ -397,6 +397,21 @@
       "color_argb8": "GColorYellowARGB8"
     },
     {
+      "id": -102,
+      "enum": "FLASHLIGHT",
+      "md_fn": "flashlight_app_get_info",
+      "color_argb8": "GColorYellowARGB8"
+    },
+    {
+      "id": -103,
+      "enum": "STOPWATCH",
+      "md_fn": "stopwatch_app_get_info",
+      "color_argb8": "GColorJaegerGreenARGB8",
+      "ifdefs": [
+        "CONFIG_SERVICE_STOPWATCH"
+      ]
+    },
+    {
       "id": -61,
       "enum": "SWAP_LAYER",
       "md_fn": "swap_layer_demo_get_app_info",
