@@ -89,8 +89,14 @@ static void prv_render_icon(GContext *ctx, Layer *base_layer) {
 static void prv_render_bpm(GContext *ctx, Layer *base_layer) {
   HealthHrSummaryCardData *data = layer_get_data(base_layer);
 
-  const int units_offset_y =
-      fonts_get_font_height(data->bpm_font) - fonts_get_font_height(data->units_font);
+  // Font heights line up the tops of the boxes, not the baselines: a Gothic
+  // unit next to LECO digits sat below them and ran into the timestamp.
+  // The two pixels are measured off a screenshot of the Gothic 18 unit.
+  // Only on the large display, where the unit font was changed; the legacy
+  // layout still pairs LECO with LECO and needs no correction.
+  const int units_offset_y = fonts_get_font_height(data->bpm_font) -
+                             fonts_get_font_height(data->units_font) -
+                             ((DISP_ROWS > LEGACY_2X_DISP_ROWS) ? 2 : 0);
 
   GTextNodeHorizontal *horiz_container = graphics_text_node_create_horizontal(MAX_TEXT_NODES);
   GTextNodeContainer *container = &horiz_container->container;
@@ -133,7 +139,10 @@ static void prv_render_timstamp(GContext *ctx, Layer *base_layer) {
 
   clock_get_until_time_without_fulltime(buffer, buffer_size, data->last_updated, HOURS_PER_DAY);
 
-  const int y = PBL_IF_RECT_ELSE(130, 136) + HEALTH_Y_OFFSET;
+  // Four pixels lower on the large display only: that is where the unit
+  // font changed. On 144x168 the rect would run past the bottom edge.
+  const int y =
+      PBL_IF_RECT_ELSE((DISP_ROWS > LEGACY_2X_DISP_ROWS) ? 134 : 130, 136) + HEALTH_Y_OFFSET;
   GRect rect = GRect(0, y, base_layer->bounds.size.w, 35);
 #if PBL_RECT
   rect = grect_inset(rect, GEdgeInsets(0, 18));
@@ -207,7 +216,10 @@ Layer *health_hr_summary_card_create(HealthData *health_data) {
     .last_updated = health_data_hr_get_last_updated_timestamp(health_data),
 #if DISP_ROWS > LEGACY_2X_DISP_ROWS
     .bpm_font = fonts_get_system_font(FONT_KEY_LECO_32_BOLD_NUMBERS),
-    .units_font = fonts_get_system_font(FONT_KEY_LECO_26_BOLD_NUMBERS_AM_PM),
+    // Same reason as the sleep card: LECO has no Cyrillic. The unit is a
+    // word here, not a letter, so it takes the 18 px face: at 24 px bold
+    // the translated word for bpm stood nearly as tall as the reading.
+    .units_font = fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
 #else
     .bpm_font = fonts_get_system_font(FONT_KEY_LECO_26_BOLD_NUMBERS_AM_PM),
     .units_font = fonts_get_system_font(FONT_KEY_LECO_20_BOLD_NUMBERS),
