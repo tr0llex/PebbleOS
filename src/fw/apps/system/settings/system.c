@@ -124,7 +124,9 @@ typedef struct SystemInformationData {
   // Ensure that OTP values are null-terminated
   char serial_string[MFG_SERIAL_NUMBER_SIZE + 1];
   char hw_version_string[MFG_HW_VERSION_SIZE + 1];
-  char uptime_string[16]; // "xxd xxh xxm xxs"
+  // Translated unit letters can take two bytes each, and then 16 bytes no
+  // longer hold a week of uptime.
+  char uptime_string[32]; // "xxd xxh xxm xxs"
   char const *subtitle_text[SystemInformationItem_Count];
   char language_string[16];
 } SystemInformationData;
@@ -220,8 +222,12 @@ static void prv_populate_uptime_string(SystemInformationData *data) {
   uint32_t days, hours, minutes, seconds;
   time_util_split_seconds_into_parts(seconds_since_reboot, &days, &hours, &minutes, &seconds);
 
-  sniprintf(data->uptime_string, sizeof(data->uptime_string),
-            "%" PRIu32 "d %" PRIu32 "h %" PRIu32 "m %" PRIu32 "s", days, hours, minutes, seconds);
+  // The format was hard-coded past the catalog: 0d 0h 9m 7s in every language.
+  char format[32];
+  /// Uptime on the system information screen: days, hours, minutes, seconds.
+  i18n_get_with_buffer("%ud %uh %um %us", format, sizeof(format));
+  sniprintf(data->uptime_string, sizeof(data->uptime_string), format, (unsigned int)days,
+            (unsigned int)hours, (unsigned int)minutes, (unsigned int)seconds);
 }
 
 static void prv_information_draw_row_callback(GContext *ctx, const Layer *cell_layer,
