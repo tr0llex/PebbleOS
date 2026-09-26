@@ -260,7 +260,11 @@ static void prv_time_picker_push(SettingsTimeData *data) {
   time_selection_window_deinit(picker);
 
   const TimeSelectionWindowConfig config = {
-    .label = i18n_noop("Set Time"),
+    // i18n_noop only marks the string for the catalog extractor and passes
+    // it through unchanged, so both picker titles stayed English in every
+    // language. The translation lives until i18n_free_all(data) in
+    // prv_deinit, that is exactly as long as the window is open.
+    .label = i18n_get("Set Time", data),
     .color = PBL_IF_COLOR_ELSE(GColorJaegerGreen, GColorBlack),
     .range = {.update = true, .enabled = false},
     .callback = {
@@ -299,7 +303,7 @@ static void prv_date_picker_push(SettingsTimeData *data) {
   // Deinit any previous state before re-initializing (safe on zeroed struct)
   date_selection_window_deinit(picker);
 
-  date_selection_window_init(picker, i18n_noop("Set Date"),
+  date_selection_window_init(picker, i18n_get("Set Date", data),
                              PBL_IF_COLOR_ELSE(GColorJaegerGreen, GColorBlack),
                              prv_date_picker_complete, data);
   date_selection_window_set_to_current_date(picker);

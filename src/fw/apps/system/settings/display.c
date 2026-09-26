@@ -37,7 +37,11 @@ typedef struct SettingsBacklightData {
 } SettingsBacklightData;
 
 static const char *s_language_labels[] = {
-  [ShellLanguageInstalledPack] = i18n_noop("Custom"),
+  // "Custom" means two different things in the firmware: a custom day
+  // set for an alarm (day_picker.c) and the installed language pack. One
+  // msgid gets one translation, so the language list showed whatever the
+  // day picker needed. A context tells the translator this one is a language.
+  [ShellLanguageInstalledPack] = i18n_ctx_noop("Language", "Custom"),
   [ShellLanguageEnglish] = "English",
 };
 
