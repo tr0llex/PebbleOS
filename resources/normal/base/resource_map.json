@@ -2681,6 +2681,26 @@
       "type": "pdc",
       "name": "WEATHER_REPORT_PAPER",
       "file": "normal/base/images/Pebble_80x80_Weather_report.svg"
+    },
+    {
+      "type": "pdc",
+      "name": "COMPASS_TINY",
+      "file": "normal/base/images/Pebble_25x25_Compass.svg"
+    },
+    {
+      "type": "pdc",
+      "name": "FLASHLIGHT_TINY",
+      "file": "normal/base/images/Pebble_25x25_Flashlight.svg"
+    },
+    {
+      "type": "pdc",
+      "name": "STOPWATCH_TINY",
+      "file": "normal/base/images/Pebble_25x25_Stopwatch.svg"
+    },
+    {
+      "type": "pdc",
+      "name": "PARTY_TINY",
+      "file": "normal/base/images/Pebble_25x25_Party.svg"
     }
   ],
   "timeline": [
