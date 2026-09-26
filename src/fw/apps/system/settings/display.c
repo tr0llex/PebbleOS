@@ -325,6 +325,7 @@ enum SettingsBacklightItem {
 #ifdef CONFIG_TOUCH
   SettingsBacklightTouchWake,
 #endif
+  SettingsBacklightNightMode,
   SettingsBacklightTimeout,
   NumSettingsBacklightItems
 };
@@ -369,6 +370,9 @@ static void prv_backlight_select_click_cb(SettingsCallbacks *context, uint16_t r
       break;
     case SettingsBacklightMotionWake:
       backlight_set_motion_enabled(!backlight_is_motion_enabled());
+      break;
+    case SettingsBacklightNightMode:
+      backlight_set_night_mode_enabled(!backlight_is_night_mode_enabled());
       break;
 #ifdef CONFIG_TOUCH
     case SettingsBacklightTouchWake:
@@ -424,6 +428,10 @@ static void prv_backlight_draw_row_cb(SettingsCallbacks *context, GContext *ctx,
     case SettingsBacklightMotionWake:
       title = i18n_noop("Wake on motion");
       subtitle = backlight_is_motion_enabled() ? i18n_noop("On") : i18n_noop("Off");
+      break;
+    case SettingsBacklightNightMode:
+      title = i18n_noop("Night Mode");
+      subtitle = backlight_is_night_mode_enabled() ? i18n_noop("On") : i18n_noop("Off");
       break;
 #ifdef CONFIG_TOUCH
     case SettingsBacklightTouchWake:
