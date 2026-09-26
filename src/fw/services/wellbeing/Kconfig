@@ -1,0 +1,19 @@
+# SPDX-FileCopyrightText: 2026 pebble-app1
+# SPDX-License-Identifier: Apache-2.0
+
+config SERVICE_WELLBEING
+    bool "Wellbeing"
+    depends on SERVICE_ACTIVITY
+    depends on SERVICE_HRM
+    help
+      Night mode for the backlight, the move reminder and overnight readiness.
+      The first two are driven by the sleep and step data the activity service
+      already collects; readiness reads the heart-rate sensor.
+
+if SERVICE_WELLBEING
+
+module = SERVICE_WELLBEING
+module-str = Wellbeing
+source "subsys/logging/Kconfig.template.log_level"
+
+endif

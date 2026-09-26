@@ -63,6 +63,9 @@
 #include "system/bootbits.h"
 #include <pbl/logging/logging.h>
 #include "system/passert.h"
+#ifdef CONFIG_SERVICE_WELLBEING
+#include "pbl/services/wellbeing/wellbeing.h"
+#endif
 #include "system/testinfra.h"
 #include "pbl/util/struct.h"
 #include "pbl/kernel/compiler.h"
@@ -263,7 +266,14 @@ static PBL_NOINLINE void prv_minimal_event_handler(PebbleEvent *e) {
       return;
 
     case PEBBLE_ACCEL_SHAKE_EVENT:
-      if (backlight_is_motion_enabled()) {
+      // Ночной режим выключает подсветку по движению в акселерометре, но
+      // встряхивание продолжает приходить, если на него подписан циферблат
+      // или фоновое приложение. Проверяем и сам режим, а не только настройку.
+      if (backlight_is_motion_enabled()
+#ifdef CONFIG_SERVICE_WELLBEING
+          && !night_mode_is_active()
+#endif
+      ) {
 #ifndef CONFIG_RECOVERY_FW
         const bool dnd_suppresses_backlight =
             do_not_disturb_is_active() && !alerts_preferences_dnd_get_motion_backlight();
