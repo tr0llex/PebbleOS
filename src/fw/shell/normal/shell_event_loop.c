@@ -18,6 +18,9 @@
 #include "pbl/services/shared_prf_storage/shared_prf_storage.h"
 #include "pbl/services/activity/activity.h"
 #include "pbl/services/activity/workout_service.h"
+#ifdef CONFIG_SERVICE_WELLBEING
+#include "pbl/services/wellbeing/wellbeing.h"
+#endif
 #include "pbl/services/app_inbox_service.h"
 #include "pbl/services/app_outbox_service.h"
 #include "pbl/services/imaging.h"
@@ -51,6 +54,12 @@ static void prv_maybe_run_settings_dbs_compaction_migration(void) {
 
 void shell_event_loop_init(void) {
   shell_prefs_init();
+#ifdef CONFIG_SERVICE_WELLBEING
+  // Сервис заботы запускается раньше, чем прочитаны настройки, а чтение их не
+  // вызывает обработчики изменений: без этой строки «Разминка» после каждой
+  // перезагрузки считалась выключенной и не заводила таймер.
+  wellbeing_handle_prefs_loaded();
+#endif
   prv_maybe_run_settings_dbs_compaction_migration();
   notification_window_service_init();
   app_inbox_service_init();
@@ -154,6 +163,9 @@ void shell_event_loop_handle_event(PebbleEvent *e) {
 
     case PEBBLE_HEALTH_SERVICE_EVENT:
       workout_service_health_event_handler(&e->health_event);
+#ifdef CONFIG_SERVICE_WELLBEING
+      wellbeing_handle_health_event(&e->health_event);
+#endif
       return;
 
     case PEBBLE_ACTIVITY_EVENT:

@@ -29,6 +29,9 @@
 #ifdef CONFIG_SERVICE_STOPWATCH
 #include "pbl/services/stopwatch/stopwatch.h"
 #endif
+#ifdef CONFIG_SERVICE_WELLBEING
+#include "pbl/services/wellbeing/wellbeing.h"
+#endif
 #include "pbl/services/stationary.h"
 #include "pbl/services/timeline/event.h"
 #include "pbl/services/wakeup.h"
@@ -125,6 +128,10 @@ void services_normal_init(void) {
 
 #ifdef CONFIG_SERVICE_STOPWATCH
   stopwatch_service_init();
+#endif
+
+#ifdef CONFIG_SERVICE_WELLBEING
+  wellbeing_service_init();
 #endif
 
 #ifdef CONFIG_MIC

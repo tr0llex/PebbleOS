@@ -104,6 +104,16 @@ void backlight_set_default_color(uint32_t rgb_color);
 bool backlight_is_motion_enabled(void);
 void backlight_set_motion_enabled(bool enable);
 
+// Night mode: while the sleep tracker says the wearer is asleep, cap the
+// backlight to a dim floor and stop motion from waking it, so rolling over at
+// three in the morning does not light up the room.
+bool backlight_is_night_mode_enabled(void);
+void backlight_set_night_mode_enabled(bool enable);
+
+// Move reminder: nudge the wearer once an hour has gone by without steps.
+bool move_reminder_is_enabled(void);
+void move_reminder_set_enabled(bool enable);
+
 // The backlight touch wake setting is used by the kernel event loop to decide
 // whether touch gestures wake the backlight, and if so which gesture (single
 // tap or double tap).
