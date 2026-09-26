@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 pebble-app1
+# SPDX-License-Identifier: Apache-2.0
+
+config APP_PARTY
+    bool "Party app"
+    default y
+    help
+      A rotating solid cube over a starfield, a strobing screen and a chiptune
+      loop on the speaker. Deliberately loud in every sense; it exists to be
+      switched on for a minute and switched off again.

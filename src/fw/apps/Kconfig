@@ -4,6 +4,8 @@
 menu "Applications"
 
 rsource "demo/Kconfig"
+rsource "system/compass/Kconfig"
+rsource "system/party/Kconfig"
 rsource "watch/Kconfig"
 
 endmenu

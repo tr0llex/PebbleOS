@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 pebble-app1
+# SPDX-License-Identifier: Apache-2.0
+
+config APP_COMPASS
+    bool "Compass app"
+    default y if MAG || QEMU
+    help
+      A compass dial driven by the compass data event. On a watch that event
+      comes from the e-compass service and needs a magnetometer; under QEMU the
+      emulator posts it directly, which is what makes the screen testable.
