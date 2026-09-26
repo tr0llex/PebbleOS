@@ -46,8 +46,11 @@
 //! System wide timeout when reverting back to clock mode from custom text
 #define STATUS_BAR_LAYER_TITLE_TIMEOUT 5000
 
-//! The size of the title buffer
-#define TITLE_TEXT_BUFFER_SIZE 20
+//! The size of the title buffer. Twenty bytes fit any English title but
+//! cut a non-Latin one mid-word: Russian needs two bytes per letter.
+//! The extra bytes come out of this type's malloc padding, so the size
+//! third-party apps see does not change (applib_malloc.json).
+#define TITLE_TEXT_BUFFER_SIZE 40
 //! The size of the info buffer
 #define INFO_TEXT_BUFFER_SIZE 8
 //! The max size of the total value of set_info_progress before progress is displayed as percentage
