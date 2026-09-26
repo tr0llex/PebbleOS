@@ -6,8 +6,25 @@
 
 #include "golf_resources.h"
 
-//! TODO: Fixme once i18n support is available for 3rd party apps
-#define i18n_get(a, b) a
+//! Stored apps are built against the SDK, which cannot reach the firmware's
+//! translation catalog, so «HOLE» and «PAR» stayed English on every watch.
+//! The app has three words; they are picked by the watch locale here.
+#include <string.h>
+static const char *prv_text(const char *english) {
+  const char *locale = i18n_get_system_locale();
+  if (!locale || strncmp(locale, "ru", 2) != 0) {
+    return english;
+  }
+  if (strcmp(english, "HOLE") == 0) {
+    return "ЛУНКА";
+  } else if (strcmp(english, "PAR") == 0) {
+    return "ПАР";
+  } else if (strcmp(english, "Disconnected") == 0) {
+    return "Нет связи";
+  }
+  return english;
+}
+#define i18n_get(a, b) prv_text(a)
 #define i18n_free_all(data)
 
 enum {
@@ -239,7 +256,9 @@ static void window_load(Window *window) {
   layer_add_child(background, status_bar_layer_get_layer(data->status_layer));
 
   // labels
-  const char *const font_key_label = FONT_KEY_GOTHIC_09;
+  // GOTHIC_09 has no Cyrillic in any language pack: translated labels would
+  // be boxes. The larger face also suits the taller screens better.
+  const char *const font_key_label = PBL_IF_RECT_ELSE(FONT_KEY_GOTHIC_14_BOLD, FONT_KEY_GOTHIC_09);
   // back, mid, front numbers
   const char *const font_key_small_numbers =
       PBL_IF_ROUND_ELSE(FONT_KEY_LECO_20_BOLD_NUMBERS, FONT_KEY_LECO_28_LIGHT_NUMBERS);
@@ -255,7 +274,7 @@ static void window_load(Window *window) {
       PBL_IF_ROUND_ELSE(GTextAlignmentRight, GTextAlignmentCenter);
 
   // text heights only used for setting text box height, not for layout
-  const int16_t label_height = 10;
+  const int16_t label_height = PBL_IF_RECT_ELSE(16, 10);
   const int16_t small_numbers_height = 30;
   const int16_t accent_numbers_height = 40;
   const int16_t large_numbers_height = 40;
@@ -264,7 +283,11 @@ static void window_load(Window *window) {
   // magic numbers measured from design spec
   const int16_t distance_column_x_offset = 0;
   const int16_t distance_column_width = PBL_IF_ROUND_ELSE(63, background_width);
-  const int16_t back_value_y_offset = STATUS_BAR_LAYER_HEIGHT + PBL_IF_ROUND_ELSE(24, 0);
+  // The layout was measured on 144x168. On a taller screen the distances sat
+  // at the top and the extra height piled up below them; split it evenly.
+  const int16_t extra_height = PBL_IF_RECT_ELSE((window_bounds.size.h - 168) / 2, 0);
+  const int16_t back_value_y_offset =
+      STATUS_BAR_LAYER_HEIGHT + PBL_IF_ROUND_ELSE(24, 0) + extra_height;
   const int16_t mid_value_y_offset = back_value_y_offset + PBL_IF_ROUND_ELSE(30, 26);
   const int16_t front_value_y_offset = mid_value_y_offset + PBL_IF_ROUND_ELSE(30, 40);
   const int16_t disconnected_text_y_offset = mid_value_y_offset + PBL_IF_ROUND_ELSE(-5, 8);
@@ -274,8 +297,13 @@ static void window_load(Window *window) {
   const int16_t stroke_box_height = PBL_IF_ROUND_ELSE(53, 50);
 #endif
   const int16_t hole_box_x_offset = PBL_IF_ROUND_ELSE(73, 0);
-  const int16_t hole_label_y_offset = STATUS_BAR_LAYER_HEIGHT + PBL_IF_ROUND_ELSE(18, 104);
-  const int16_t hole_value_y_offset = hole_label_y_offset + PBL_IF_ROUND_ELSE(5, 2);
+  // The dividers around hole and par are drawn from the bottom edge
+  // (background_update_proc), the numbers were placed from the top. On 168 px
+  // the two met; on 228 px the frame sat 60 px below its numbers. Both now
+  // hang from the bottom: the frame is 50 px tall.
+  const int16_t hole_label_y_offset =
+      PBL_IF_ROUND_ELSE(STATUS_BAR_LAYER_HEIGHT + 18, window_bounds.size.h - 50 + 1);
+  const int16_t hole_value_y_offset = hole_label_y_offset + PBL_IF_ROUND_ELSE(5, 6);
   const int16_t par_box_x_offset = hole_box_x_offset + PBL_IF_ROUND_ELSE(0, stroke_box_width);
   const int16_t par_label_y_offset = hole_label_y_offset + PBL_IF_ROUND_ELSE(stroke_box_height, 0);
   const int16_t par_value_y_offset = hole_value_y_offset + PBL_IF_ROUND_ELSE(stroke_box_height, 0);
