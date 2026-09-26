@@ -232,7 +232,36 @@ static void light_timer_callback(void *data) {
   pbl_mutex_unlock(&s_mutex);
 }
 
+//! Absolute intensity an app has forced, or 0 when the usual rules apply.
+static uint8_t s_intensity_override;
+
+//! Ceiling that holds while the wearer is asleep, or 0 when it does not apply.
+static uint8_t s_night_ceiling;
+
+static uint8_t prv_backlight_get_intensity_raw(void);
+
 static uint8_t prv_backlight_get_intensity(void) {
+  const uint8_t intensity = prv_backlight_get_intensity_raw();
+  // The night ceiling is last, and applies to the app override too: at night
+  // nothing should be able to light up the room.
+  if (s_night_ceiling > 0 && intensity > s_night_ceiling) {
+    return s_night_ceiling;
+  }
+  return intensity;
+}
+
+static uint8_t prv_backlight_get_intensity_raw(void) {
+  // Deliberately ahead of the dynamic ramp and the user max: an app that asks
+  // for a specific brightness is asking for that brightness.
+  if (s_intensity_override > 0) {
+    // Кроме режима экономии: заряд почти кончился, и фонарик на полной яркости
+    // досадил бы его за минуты. Там тот же потолок 25 %, что и у всей подсветки.
+    if (low_power_is_active() && s_intensity_override > 25) {
+      return 25;
+    }
+    return s_intensity_override;
+  }
+
   // low_power_mode backlight intensity (25% of max brightness)
   const uint8_t backlight_low_power_intensity = 25;
 
@@ -580,6 +609,29 @@ void light_enable(bool enable) {
   pbl_mutex_unlock(&s_mutex);
 }
 
+void light_set_intensity_override(uint8_t intensity_pct) {
+  pbl_mutex_lock(&s_mutex, PBL_FOREVER);
+
+  s_intensity_override = MIN(intensity_pct, 100);
+  // Re-apply at once: the wearer is looking at the light while changing it.
+  if (s_light_state != LIGHT_STATE_OFF) {
+    prv_change_state(s_light_state);
+  }
+
+  pbl_mutex_unlock(&s_mutex);
+}
+
+void light_set_night_ceiling(uint8_t intensity_pct) {
+  pbl_mutex_lock(&s_mutex, PBL_FOREVER);
+
+  s_night_ceiling = MIN(intensity_pct, 100);
+  if (s_light_state != LIGHT_STATE_OFF) {
+    prv_change_state(s_light_state);
+  }
+
+  pbl_mutex_unlock(&s_mutex);
+}
+
 void light_enable_respect_settings(bool enable) {
   pbl_mutex_lock(&s_mutex, PBL_FOREVER);
 
@@ -603,6 +655,8 @@ void light_reset_user_controlled(void) {
   light_touch_up();
 
   pbl_mutex_lock(&s_mutex, PBL_FOREVER);
+
+  s_intensity_override = 0;
 
   // http://www.youtube.com/watch?v=6t_KgE6Yuqg
   if (s_user_controlled_state) {

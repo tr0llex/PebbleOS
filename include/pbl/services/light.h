@@ -55,6 +55,17 @@ void light_enable_interaction(void);
 //! Reset the state if an app overrode the usual state machine using light_enable()
 void light_reset_user_controlled(void);
 
+//! Drive the backlight at an absolute intensity, ignoring the user's brightness
+//! preference and the ambient ramp, until cleared with 0. For the flashlight,
+//! whose whole purpose is the light itself; cleared when the app exits.
+//! @param intensity_pct 1-100, or 0 to go back to the usual rules
+void light_set_intensity_override(uint8_t intensity_pct);
+
+//! Cap the backlight while the wearer is asleep. Applied after every other
+//! rule, the app override included.
+//! @param intensity_pct 1-100, or 0 for no cap
+void light_set_night_ceiling(uint8_t intensity_pct);
+
 //! @copydoc app_light_set_color_rgb888
 //! rgb is a packed 0x00RRGGBB value (8 bits per channel). No-op on
 //! platforms without a color backlight.
