@@ -437,7 +437,14 @@ const char *i18n_get(const char *msgid, const void *owner) {
   }
 
   // Lookup the translation from the language pack and add it to our cache
-  char translated[200];
+  // Translations run longer than the English source they are sized for:
+  // Russian averages about one and a half times the length, and whole
+  // notifications stopped fitting. One health insight takes 206 bytes
+  // translated and reached the watch cut mid-word. The firmware does log
+  // "Truncated string", but all the wearer sees is the stump.
+  //
+  // A pack build can check its strings against this limit.
+  char translated[256];
   size_t len = 0;
   prv_lookup(msgid, db, &len, translated, sizeof(translated));
   if (len >= sizeof(translated)) {
