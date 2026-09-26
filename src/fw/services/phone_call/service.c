@@ -32,6 +32,10 @@ PBL_LOG_MODULE_DEFINE(service_phone_call, CONFIG_SERVICE_PHONE_CALL_LOG_LEVEL);
 //!   know when the phone stops ringing, we don't know what happens after the user accepts/rejects
 
 static bool s_call_in_progress = false;
+//! The call was answered and a conversation is under way. Only the phone knows
+//! how a call ends, and it says just "ended": without this the watch cannot tell
+//! a finished conversation from a call that was never picked up.
+static bool s_call_started = false;
 static PhoneCallSource s_call_source;
 
 // When using Android this is the cookie, when using ANCS this is the NotificationUUID
@@ -100,6 +104,7 @@ static bool prv_can_hangup(void) {
 // Handles the common things when we hide an incoming call
 static void prv_call_end_common(void) {
   s_call_in_progress = false;
+  s_call_started = false;
   prv_cancel_call_watchdog();
   PBL_ANALYTICS_TIMER_STOP(phone_call_time_ms);
 }
@@ -126,6 +131,9 @@ static void prv_handle_incoming_call(const PebblePhoneEvent *event) {
   }
 
   s_call_in_progress = true;
+  // A call hung up from the watch skips prv_call_end_common, so the flag
+  // from that conversation would otherwise carry into this call.
+  s_call_started = false;
   s_call_source = event->source;
   s_call_identifier = event->call_identifier;
 
@@ -164,6 +172,7 @@ static void prv_handle_call_start(void) {
       prv_call_end_common();
       phone_ui_handle_call_end(true /*call accepted*/, false /*disconnected*/);
     } else {
+      s_call_started = true;
       phone_ui_handle_call_start(prv_can_hangup());
     }
   } else {
@@ -189,8 +198,13 @@ static void prv_handle_call_hide(PebblePhoneEvent *event) {
 
 static void prv_handle_call_end(bool disconnected) {
   if (s_call_in_progress) {
+    // A conversation that simply ended was reported as a declined call: red
+    // screen and «Call Declined» after every answered call on Android.
+    // A dropped link mid-conversation is not an ended call: the phone may
+    // still be on it, so it keeps upstream's «Disconnected».
+    const bool call_accepted = s_call_started && !disconnected;
     prv_call_end_common();
-    phone_ui_handle_call_end(false /*call accepted*/, disconnected);
+    phone_ui_handle_call_end(call_accepted, disconnected);
   } else if (!disconnected) {
     PBL_LOG_DBG("Ignoring end call. A call is not in progress");
   }
@@ -328,6 +342,7 @@ void phone_call_decline(void) {
 
   if (s_call_in_progress) {
     s_call_in_progress = false;
+    s_call_started = false;
     PBL_ANALYTICS_TIMER_STOP(phone_call_time_ms);
   }
 }
