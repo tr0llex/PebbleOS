@@ -70,6 +70,7 @@ pbl_add_subdirectory_ifdef(CONFIG_SERVICE_VOICE voice)
 pbl_add_subdirectory_ifdef(CONFIG_SERVICE_VOICE_ENDPOINT voice_endpoint)
 pbl_add_subdirectory_ifdef(CONFIG_SERVICE_WAKEUP wakeup)
 pbl_add_subdirectory_ifdef(CONFIG_SERVICE_WEATHER weather)
+pbl_add_subdirectory_ifdef(CONFIG_SERVICE_WELLBEING wellbeing)
 
 pbl_library()
 pbl_library_sources(services.c)

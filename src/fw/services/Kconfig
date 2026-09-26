@@ -71,5 +71,6 @@ rsource "voice/Kconfig"
 rsource "voice_endpoint/Kconfig"
 rsource "wakeup/Kconfig"
 rsource "weather/Kconfig"
+rsource "wellbeing/Kconfig"
 
 endmenu

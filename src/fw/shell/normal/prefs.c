@@ -21,6 +21,9 @@
 #include "pbl/services/touch/touch.h"
 #include "pbl/services/touch/touch_nav_service.h"
 #include "pbl/services/hrm/hrm_manager.h"
+#ifdef CONFIG_SERVICE_WELLBEING
+#include "pbl/services/wellbeing/wellbeing.h"
+#endif
 #include "pbl/services/i18n/i18n.h"
 #include "resource/resource_ids.auto.h"
 #ifdef CONFIG_ORIENTATION_MANAGER
@@ -86,6 +89,16 @@ static uint32_t s_backlight_color; // default pulled from BOARD_CONFIG in shell_
 
 #define PREF_KEY_BACKLIGHT_MOTION "lightMotion"
 static bool s_backlight_motion_enabled = true;
+
+// Обе выключены: это поведение, которого у часов не было, и включать его за
+// владельца неправильно. Ночной режим к тому же зажимает яркость и глушит
+// подсветку по повороту руки — незаметно для того, кто его не просил, и
+// неотличимо от поломки.
+#define PREF_KEY_BACKLIGHT_NIGHT_MODE "lightNightMode"
+static bool s_backlight_night_mode_enabled = false;
+
+#define PREF_KEY_MOVE_REMINDER "moveReminder"
+static bool s_move_reminder_enabled = false;
 
 #define PREF_KEY_BACKLIGHT_TOUCH "lightTouch"
 static uint8_t s_backlight_touch_wake = BacklightTouchWake_DoubleTap;
@@ -350,7 +363,12 @@ static GColor s_theme_highlight_color = GColorVividCerulean;
 #define PREF_KEY_MUSIC_SHOW_PROGRESS_BAR    "musicShowProgressBar"
 #define PREF_KEY_MUSIC_SHOW_ALBUM_ART       "musicShowAlbumArt"
 
-static bool s_menu_scroll_wrap_around = false;
+// Апстрим держит замыкание выключенным, но включить его на часах негде: пункта
+// в настройках нет, значение пишется только телефоном через BlobDB. То есть
+// «выключено по умолчанию» на практике означает «недоступно». Список из двух
+// экранов удобнее листать по кругу — «вверх» на первом пункте уводит в конец,
+// а не упирается.
+static bool s_menu_scroll_wrap_around = true;
 static MenuScrollVibeBehavior s_menu_scroll_vibe_behavior = MenuScrollNoVibe;
 static bool s_music_show_volume_controls = true;
 static bool s_music_show_progress_bar = true;
@@ -463,6 +481,27 @@ static bool prv_set_s_backlight_color(uint32_t *rgb_color) {
 static bool prv_set_s_backlight_motion_enabled(bool *enabled) {
   s_backlight_motion_enabled = *enabled;
   accel_manager_set_motion_backlight_enabled(*enabled);
+#ifdef CONFIG_SERVICE_WELLBEING
+  // Значение только что ушло в акселерометр напрямую; если сейчас ночь, ночной
+  // режим должен лечь поверх, иначе включённое «будить движением» его снимет.
+  night_mode_handle_prefs_changed();
+#endif
+  return true;
+}
+
+static bool prv_set_s_backlight_night_mode_enabled(bool *enabled) {
+  s_backlight_night_mode_enabled = *enabled;
+#ifdef CONFIG_SERVICE_WELLBEING
+  night_mode_handle_prefs_changed();
+#endif
+  return true;
+}
+
+static bool prv_set_s_move_reminder_enabled(bool *enabled) {
+  s_move_reminder_enabled = *enabled;
+#ifdef CONFIG_SERVICE_WELLBEING
+  inactivity_handle_prefs_changed();
+#endif
   return true;
 }
 
@@ -1462,6 +1501,22 @@ bool backlight_is_motion_enabled(void) {
 
 void backlight_set_motion_enabled(bool enable) {
   prv_pref_set(PREF_KEY_BACKLIGHT_MOTION, &enable, sizeof(enable));
+}
+
+bool backlight_is_night_mode_enabled(void) {
+  return s_backlight_night_mode_enabled;
+}
+
+void backlight_set_night_mode_enabled(bool enable) {
+  prv_pref_set(PREF_KEY_BACKLIGHT_NIGHT_MODE, &enable, sizeof(enable));
+}
+
+bool move_reminder_is_enabled(void) {
+  return s_move_reminder_enabled;
+}
+
+void move_reminder_set_enabled(bool enable) {
+  prv_pref_set(PREF_KEY_MOVE_REMINDER, &enable, sizeof(enable));
 }
 
 BacklightTouchWake backlight_get_touch_wake(void) {
