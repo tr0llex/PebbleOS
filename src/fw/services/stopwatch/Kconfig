@@ -1,0 +1,16 @@
+# SPDX-FileCopyrightText: 2026 pebble-app1
+# SPDX-License-Identifier: Apache-2.0
+
+config SERVICE_STOPWATCH
+    bool "Stopwatch and countdown timer"
+    help
+      Keeps the stopwatch and the countdown running while the app that shows
+      them is closed.
+
+if SERVICE_STOPWATCH
+
+module = SERVICE_STOPWATCH
+module-str = Stopwatch
+source "subsys/logging/Kconfig.template.log_level"
+
+endif
