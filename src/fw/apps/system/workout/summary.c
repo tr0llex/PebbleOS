@@ -78,7 +78,8 @@ static void prv_render_activity_type(GContext *ctx, Layer *layer, KinoReel *icon
 static void prv_base_layer_update_proc(struct Layer *layer, GContext *ctx) {
   WorkoutSummaryWindow *summary_window = window_get_user_data(layer_get_window(layer));
 
-  prv_render_activity_type(ctx, layer, summary_window->icon, summary_window->name);
+  prv_render_activity_type(ctx, layer, summary_window->icon,
+                           i18n_get(summary_window->name, summary_window));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
