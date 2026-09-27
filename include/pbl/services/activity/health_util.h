@@ -79,6 +79,10 @@ void health_util_duration_to_hours_and_minutes_text_node(int duration_s, void *i
                                                          GColor color,
                                                          GTextNodeContainer *container);
 
+//! Whether the language pack translates a unit string to something other than its msgid
+//! @param msgid The untranslated unit, e.g. "BPM"; must not carry a context
+bool health_util_unit_is_translated(const char *msgid);
+
 //! Convert a fraction into its whole and decimal parts
 //! ex. 5/2 has a whole part of 2 and a decimal part of .5
 //! @param numerator the numerator of the fraction

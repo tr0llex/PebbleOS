@@ -249,6 +249,9 @@ Layer *health_sleep_summary_card_create(HealthData *health_data) {
   Layer *base_layer = layer_create_with_data(GRectZero, sizeof(HealthSleepSummaryCardData));
   HealthSleepSummaryCardData *health_sleep_summary_card_data = layer_get_data(base_layer);
   layer_set_update_proc(base_layer, prv_base_layer_update_proc);
+  // LECO only covers digits and a few Latin capitals
+  const bool translated_units =
+      health_util_unit_is_translated("h") || health_util_unit_is_translated("min");
   // set health data
   *health_sleep_summary_card_data = (HealthSleepSummaryCardData){
     .icon = kino_reel_create_with_resource(RESOURCE_ID_HEALTH_APP_SLEEP),
@@ -260,10 +263,12 @@ Layer *health_sleep_summary_card_create(HealthData *health_data) {
     .health_data = health_data,
 #if DISP_ROWS > LEGACY_2X_DISP_ROWS
     .number_font = fonts_get_system_font(FONT_KEY_LECO_32_BOLD_NUMBERS),
-    .unit_font = fonts_get_system_font(FONT_KEY_LECO_26_BOLD_NUMBERS_AM_PM),
+    .unit_font = fonts_get_system_font(translated_units ? FONT_KEY_GOTHIC_24_BOLD
+                                                        : FONT_KEY_LECO_26_BOLD_NUMBERS_AM_PM),
 #else
     .number_font = fonts_get_system_font(FONT_KEY_LECO_26_BOLD_NUMBERS_AM_PM),
-    .unit_font = fonts_get_system_font(FONT_KEY_LECO_20_BOLD_NUMBERS),
+    .unit_font = fonts_get_system_font(translated_units ? FONT_KEY_GOTHIC_18_BOLD
+                                                        : FONT_KEY_LECO_20_BOLD_NUMBERS),
 #endif
     .typical_font = fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
     .em_dash_font = fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD),
