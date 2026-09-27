@@ -67,8 +67,12 @@ void phone_ui_handle_call_start(bool can_decline) {
   s_last_phone_ui_event = PhoneEventType_Start;
 }
 
+static bool s_last_call_accepted;
+static bool s_last_call_disconnected;
 void phone_ui_handle_call_end(bool call_accepted, bool disconnected) {
   s_last_phone_ui_event = PhoneEventType_End;
+  s_last_call_accepted = call_accepted;
+  s_last_call_disconnected = disconnected;
 }
 
 void phone_ui_handle_call_hide(void) {
@@ -267,4 +271,54 @@ void test_phone_call__ancs_hide(void) {
 
   prv_call_hide(ANCS_CALL_UID);
   ASSERT_LAST_EVENT(PhoneEventType_Hide);
+}
+
+// ---------------------------------------------------------------------------------------
+// An answered PP call that the phone then ends was a conversation, not a declined call
+void test_phone_call__pp_end_after_start_is_accepted(void) {
+  prv_put_incoming_call_event(PhoneCallSource_PP, true);
+  prv_call_start();
+  ASSERT_LAST_EVENT(PhoneEventType_Start);
+
+  prv_call_end();
+  ASSERT_LAST_EVENT(PhoneEventType_End);
+  cl_assert_equal_b(s_last_call_accepted, true);
+  cl_assert_equal_b(s_last_call_disconnected, false);
+}
+
+// ---------------------------------------------------------------------------------------
+void test_phone_call__pp_end_without_start_is_declined(void) {
+  prv_put_incoming_call_event(PhoneCallSource_PP, true);
+  ASSERT_LAST_EVENT(PhoneEventType_Incoming);
+
+  prv_call_end();
+  ASSERT_LAST_EVENT(PhoneEventType_End);
+  cl_assert_equal_b(s_last_call_accepted, false);
+}
+
+// ---------------------------------------------------------------------------------------
+void test_phone_call__pp_disconnect_after_start_is_not_accepted(void) {
+  prv_put_incoming_call_event(PhoneCallSource_PP, true);
+  prv_call_start();
+  ASSERT_LAST_EVENT(PhoneEventType_Start);
+
+  prv_put_comm_session_event(false /* app_connected */);
+  ASSERT_LAST_EVENT(PhoneEventType_End);
+  cl_assert_equal_b(s_last_call_accepted, false);
+  cl_assert_equal_b(s_last_call_disconnected, true);
+}
+
+// ---------------------------------------------------------------------------------------
+// A call hung up from the watch must not leave the next call marked as answered
+void test_phone_call__answered_state_does_not_leak_into_next_call(void) {
+  prv_put_incoming_call_event(PhoneCallSource_PP, true);
+  prv_call_start();
+  ASSERT_LAST_EVENT(PhoneEventType_Start);
+  phone_call_decline();
+
+  prv_put_incoming_call_event(PhoneCallSource_PP, true);
+  ASSERT_LAST_EVENT(PhoneEventType_Incoming);
+  prv_call_end();
+  ASSERT_LAST_EVENT(PhoneEventType_End);
+  cl_assert_equal_b(s_last_call_accepted, false);
 }
