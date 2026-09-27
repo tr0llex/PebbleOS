@@ -669,7 +669,8 @@ size_t utf8_get_size_truncate(const char *text, size_t max_size) {
     // src[len] is be valid because strnlen indicated that the source string is at least len
     // characters, therefore len can, at worst, only be the end of the string
     utf8_t *end = utf8_get_previous((utf8_t *)text, (utf8_t *)&text[len]);
-    len = end - (utf8_t *)text;
+    // No character start in the prefix: nothing fits
+    len = end ? (size_t)(end - (utf8_t *)text) : 0;
   }
 
   return len;

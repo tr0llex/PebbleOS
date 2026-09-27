@@ -153,6 +153,8 @@ void test_utf8__get_size_truncate(void) {
   cl_assert_equal_i(17, utf8_get_size_truncate("Hello World! \xF0\x9F\x98\x84", 100));
   cl_assert_equal_i(13, utf8_get_size_truncate("Hello World! \xF0\x9F\x98\x84", 17));
   cl_assert_equal_i(16, utf8_get_size_truncate("Hello World! \xF0\x9F\x98", 17));
+  // Only continuation bytes: there is no character boundary to cut at
+  cl_assert_equal_i(0, utf8_get_size_truncate("\x80\x80\x80\x80", 4));
   cl_assert_equal_i(13, utf8_get_size_truncate("Hello World! \xF0\x9F\x98\x84", 16));
   cl_assert_passert(utf8_get_size_truncate("Hi", 0));
 }
