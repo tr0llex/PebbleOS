@@ -264,7 +264,10 @@ static void window_load(Window *window) {
   // magic numbers measured from design spec
   const int16_t distance_column_x_offset = 0;
   const int16_t distance_column_width = PBL_IF_ROUND_ELSE(63, background_width);
-  const int16_t back_value_y_offset = STATUS_BAR_LAYER_HEIGHT + PBL_IF_ROUND_ELSE(24, 0);
+  // Center the distances in any height beyond the 168 px design
+  const int16_t extra_height = PBL_IF_ROUND_ELSE(0, (window_bounds.size.h - 168) / 2);
+  const int16_t back_value_y_offset =
+      STATUS_BAR_LAYER_HEIGHT + PBL_IF_ROUND_ELSE(24, 0) + extra_height;
   const int16_t mid_value_y_offset = back_value_y_offset + PBL_IF_ROUND_ELSE(30, 26);
   const int16_t front_value_y_offset = mid_value_y_offset + PBL_IF_ROUND_ELSE(30, 40);
   const int16_t disconnected_text_y_offset = mid_value_y_offset + PBL_IF_ROUND_ELSE(-5, 8);
@@ -274,7 +277,9 @@ static void window_load(Window *window) {
   const int16_t stroke_box_height = PBL_IF_ROUND_ELSE(53, 50);
 #endif
   const int16_t hole_box_x_offset = PBL_IF_ROUND_ELSE(73, 0);
-  const int16_t hole_label_y_offset = STATUS_BAR_LAYER_HEIGHT + PBL_IF_ROUND_ELSE(18, 104);
+  // Anchored to the bottom edge, like the boxes in background_update_proc()
+  const int16_t hole_label_y_offset =
+      PBL_IF_ROUND_ELSE(STATUS_BAR_LAYER_HEIGHT + 18, window_bounds.size.h - 48);
   const int16_t hole_value_y_offset = hole_label_y_offset + PBL_IF_ROUND_ELSE(5, 2);
   const int16_t par_box_x_offset = hole_box_x_offset + PBL_IF_ROUND_ELSE(0, stroke_box_width);
   const int16_t par_label_y_offset = hole_label_y_offset + PBL_IF_ROUND_ELSE(stroke_box_height, 0);
