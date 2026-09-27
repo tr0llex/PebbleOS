@@ -34,12 +34,14 @@
 #include "kernel/event_loop.h"
 #include "kernel/events.h"
 #include "kernel/pbl_malloc.h"
+#include "applib/graphics/utf8.h"
 #include "resource/resource.h"
 #include "shell/normal/language_ui.h"
 #include "shell/prefs.h"
 #include <pbl/logging/logging.h>
 #include "system/passert.h"
 #include "pbl/util/list.h"
+#include "pbl/util/testing.h"
 
 PBL_LOG_MODULE_DEFINE(service_i18n, CONFIG_SERVICE_I18N_LOG_LEVEL);
 
@@ -95,21 +97,17 @@ static uint32_t prv_next_index(uint32_t curidx, uint32_t hashsize, uint32_t step
   return curidx + step - (curidx >= hashsize - step ? hashsize : 0);
 }
 
-//! Lookup a translated string.
-//! @param msgid The message id (original string) to look up.
-//! @param db The domain binding containing the translations.
-//! @param[out] rlen Can be NULL. If non-null will be populated with the length of the translated
-//!                  string.
-//! @param[out] rstring Can be NULL. If non-null this buffer will be populated with the translated
-//!                     string. This buffer will be null-terminated.
-//! @param rstring_len The length of the rstring buffer.
-static void prv_lookup(const char *msgid, struct DomainBinding *db, size_t *rlen, char *rstring,
-                       size_t rstring_len) {
+//! A translation entry must lie inside the language pack, terminator included
+PBL_T_STATIC bool prv_entry_in_bounds(const MoEntry *entry, size_t resource_len) {
+  return entry->len < resource_len && entry->off <= resource_len - entry->len - 1;
+}
+
+//! Find the translation table entry for msgid.
+static bool prv_find_translation(const char *msgid, struct DomainBinding *db, MoEntry *tentry) {
   MoHandle *mohandle = &db->mohandle;
-  *rlen = 0;
 
   if (mohandle->mo.hdr.mo_hsize <= 2 || mohandle->mo.mo_htable == NULL) {
-    return;
+    return false;
   }
 
   uint32_t hashval = prv_gettext_hash(msgid);
@@ -120,51 +118,79 @@ static void prv_lookup(const char *msgid, struct DomainBinding *db, size_t *rlen
     uint32_t strno = mohandle->mo.mo_htable[idx];
     if (strno-- == 0) {
       /* unexpected miss */
-      return;
+      return false;
     }
     MoEntry oentry;
     if (resource_load_byte_range_system(0, db->resource_id,
                                         mohandle->mo.hdr.mo_otable + sizeof(MoEntry) * strno,
                                         (uint8_t *)&oentry, sizeof(MoEntry)) != sizeof(MoEntry)) {
-      return;
+      return false;
     }
     if (len == oentry.len) {
       // Length of original matches, compare the contents
       char key[oentry.len + 1];
       if (resource_load_byte_range_system(0, db->resource_id, oentry.off, (uint8_t *)key,
                                           oentry.len) != oentry.len) {
-        return;
+        return false;
       }
       key[oentry.len] = '\0';
 
       if (!strcmp(msgid, key)) {
         // Contents of original string matches, get the translated string
-        MoEntry tentry;
-        if (resource_load_byte_range_system(
-                0, db->resource_id, mohandle->mo.hdr.mo_ttable + sizeof(MoEntry) * strno,
-                (uint8_t *)&tentry, sizeof(MoEntry)) != sizeof(MoEntry)) {
-          return;
-        }
-        if (rstring) { // If we want the translated string, copy it out.
-          // Make sure we don't read out more than the length of the buffer we're reading into.
-          // Leave space for the null-terminator as well.
-          const size_t read_length = MIN(tentry.len, rstring_len - 1);
-
-          if (resource_load_byte_range_system(0, db->resource_id, tentry.off, (uint8_t *)rstring,
-                                              read_length) != read_length) {
-            return;
-          }
-
-          rstring[read_length] = '\0';
-        }
-        if (rlen) { // If we want the translated string length, copy it out.
-          *rlen = tentry.len;
-        }
-        return;
+        return resource_load_byte_range_system(
+                   0, db->resource_id, mohandle->mo.hdr.mo_ttable + sizeof(MoEntry) * strno,
+                   (uint8_t *)tentry, sizeof(MoEntry)) == sizeof(MoEntry) &&
+               prv_entry_in_bounds(tentry, mohandle->len);
       }
     }
     idx = prv_next_index(idx, mohandle->mo.hdr.mo_hsize, step);
   }
+}
+
+//! If cutting str at len split a character, drop what is left of it
+PBL_T_STATIC void prv_drop_partial_character(char *str, size_t len) {
+  if (utf8_is_valid_string(str)) {
+    return;
+  }
+  utf8_t *const last = utf8_get_previous((utf8_t *)str, (utf8_t *)&str[len]);
+  // A prefix of only continuation bytes has no character to keep
+  *(last ? last : (utf8_t *)str) = '\0';
+}
+
+//! Reads a translation into rstring, cut on a character boundary if it does not fit
+static bool prv_read_translation(struct DomainBinding *db, const MoEntry *tentry, char *rstring,
+                                 size_t rstring_len) {
+  // Leave space for the null-terminator
+  size_t read_length = MIN(tentry->len, rstring_len - 1);
+  if (resource_load_byte_range_system(0, db->resource_id, tentry->off, (uint8_t *)rstring,
+                                      read_length) != read_length) {
+    return false;
+  }
+  rstring[read_length] = '\0';
+  if (read_length < tentry->len) {
+    prv_drop_partial_character(rstring, read_length);
+  }
+  return true;
+}
+
+//! Lookup a translated string.
+//! @param msgid The message id (original string) to look up.
+//! @param db The domain binding containing the translations.
+//! @param[out] rlen Populated with the length of the translated string, 0 if not found.
+//! @param[out] rstring Can be NULL. If non-null this buffer will be populated with the translated
+//!                     string. This buffer will be null-terminated.
+//! @param rstring_len The length of the rstring buffer.
+static void prv_lookup(const char *msgid, struct DomainBinding *db, size_t *rlen, char *rstring,
+                       size_t rstring_len) {
+  *rlen = 0;
+  MoEntry tentry;
+  if (!prv_find_translation(msgid, db, &tentry)) {
+    return;
+  }
+  if (rstring && !prv_read_translation(db, &tentry, rstring, rstring_len)) {
+    return;
+  }
+  *rlen = tentry.len;
 }
 
 ///////////////////////////////////////////////////
@@ -358,19 +384,21 @@ I18nString *prv_list_find_string(const char *string, const void *owner) {
                                  prv_list_string_filter_callback, (void *)&lookup_info);
 }
 
-static const char *prv_list_add_string(const char *original_string, const char *translated_string,
+//! Caches a string with room for a translated_len byte translation, which the caller fills in.
+//! Returns NULL if there is no memory for it.
+static I18nString *prv_list_add_string(const char *original_string, size_t translated_len,
                                        const void *owner) {
-  uint32_t translated_len = strlen(translated_string);
-
   // Allocate enough space to hold the original and translated strings. The translated string
   // is stored at i18n_string->translated and the original string immediately after that.
   I18nString *i18n_string =
-      kernel_malloc_check(sizeof(I18nString) + translated_len + 1 + strlen(original_string) + 1);
+      kernel_malloc(sizeof(I18nString) + translated_len + 1 + strlen(original_string) + 1);
+  if (!i18n_string) {
+    return NULL;
+  }
 
   list_init(&i18n_string->node);
   i18n_string->owner = owner;
-
-  strcpy(i18n_string->translated_string, translated_string);
+  i18n_string->translated_string[0] = '\0';
 
   i18n_string->original_hash = prv_gettext_hash(original_string);
   // Store the original string immediately after the translated one in memory.
@@ -379,12 +407,7 @@ static const char *prv_list_add_string(const char *original_string, const char *
 
   I18nString **strings_list = &s_system_domain.strings_list;
   *strings_list = (I18nString *)list_prepend((ListNode *)*strings_list, &i18n_string->node);
-
-  if (translated_len > 0) {
-    return (i18n_string->translated_string);
-  } else {
-    return original_string;
-  }
+  return i18n_string;
 }
 
 static void prv_list_remove_string(I18nString *i18n_string) {
@@ -436,20 +459,18 @@ const char *i18n_get(const char *msgid, const void *owner) {
     }
   }
 
-  // Lookup the translation from the language pack and add it to our cache
-  char translated[200];
-  size_t len = 0;
-  prv_lookup(msgid, db, &len, translated, sizeof(translated));
-  if (len >= sizeof(translated)) {
-    PBL_LOG_WRN("Truncated string: <%s>", msgid);
+  // Cache an untranslated string as empty so we don't waste time looking for it again
+  MoEntry tentry;
+  const bool found = prv_find_translation(msgid, db, &tentry);
+  i18n_string = prv_list_add_string(msgid, found ? tentry.len : 0, owner);
+  if (!i18n_string) {
+    goto fail;
   }
-
-  if (len) {
-    return prv_list_add_string(msgid, translated, owner);
-  } else {
-    // Add to cache as an untranslatable string so we don't waste time looking for it again.
-    prv_list_add_string(msgid, (const char *)"", owner);
+  if (found && tentry.len &&
+      prv_read_translation(db, &tentry, i18n_string->translated_string, tentry.len + 1)) {
+    return i18n_string->translated_string;
   }
+  i18n_string->translated_string[0] = '\0';
 
 fail:
   // String not found or an error occurred.
