@@ -37,7 +37,7 @@ typedef struct SettingsBacklightData {
 } SettingsBacklightData;
 
 static const char *s_language_labels[] = {
-  [ShellLanguageInstalledPack] = i18n_noop("Custom"),
+  [ShellLanguageInstalledPack] = i18n_ctx_noop("Language", "Custom"),
   [ShellLanguageEnglish] = "English",
 };
 
