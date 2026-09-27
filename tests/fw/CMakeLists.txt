@@ -17,6 +17,7 @@ pbl_clar_test(test_utf8
 pbl_clar_test(test_i18n
   SOURCES
     src/fw/services/i18n/i18n.c
+    src/fw/applib/graphics/utf8.c
     src/fw/flash_region/flash_region.c
     src/fw/flash_region/filesystem_regions.c
     src/fw/resource/resource.c

@@ -69,6 +69,8 @@ void test_i18n__cleanup(void) {
 }
 
 extern I18nString *prv_list_find_string(const char *string, void *owner);
+extern bool prv_entry_in_bounds(const MoEntry *entry, size_t resource_len);
+extern void prv_drop_partial_character(char *str, size_t len);
 
 void test_i18n__music(void) {
   const char *first = i18n_get("Music", (void *)0x12345);
@@ -127,6 +129,12 @@ void test_i18n__get_with_buffer(void) {
   // Make sure we truncate correctly
   i18n_get_with_buffer("Music", buffer, 3);
   cl_assert_equal_s(buffer, "Mu");
+
+  // A cut must not split a multi-byte character: "Active" is "S\xc3\xa9lectionn\xc3\xa9"
+  i18n_get_with_buffer("Active", buffer, 3);
+  cl_assert_equal_s(buffer, "S");
+  i18n_get_with_buffer("Active", buffer, 4);
+  cl_assert_equal_s(buffer, "S\xc3\xa9");
 }
 
 void test_i18n__get_length(void) {
@@ -222,4 +230,39 @@ void test_i18n__language_change_event(void) {
   shell_prefs_set_language_english(true);
   i18n_set_resource(RESOURCE_ID_STRINGS);
   cl_assert_equal_i(s_num_language_change_events, 3);
+}
+
+void test_i18n__entry_bounds(void) {
+  const size_t size = 1000;
+  cl_assert(prv_entry_in_bounds(&(MoEntry){.len = 10, .off = 100}, size));
+  // The last byte of the resource is the terminator
+  cl_assert(prv_entry_in_bounds(&(MoEntry){.len = 10, .off = 989}, size));
+  cl_assert(!prv_entry_in_bounds(&(MoEntry){.len = 10, .off = 990}, size));
+  cl_assert(!prv_entry_in_bounds(&(MoEntry){.len = 1000, .off = 0}, size));
+  cl_assert(!prv_entry_in_bounds(&(MoEntry){.len = UINT32_MAX, .off = 0}, size));
+  cl_assert(!prv_entry_in_bounds(&(MoEntry){.len = 10, .off = UINT32_MAX - 5}, size));
+}
+
+void test_i18n__long_translation_is_read_whole(void) {
+  const char *msgid =
+      "How are you feeling? Have you noticed extra focus, better mood or extra energy? "
+      "You have been sleeping great this week! Keep it up!";
+  const size_t len = i18n_get_length(msgid);
+  cl_assert(len > strlen(msgid));
+  cl_assert_equal_i(strlen(i18n_get(msgid, __FILE__)), len);
+  i18n_free_all(__FILE__);
+}
+
+void test_i18n__drop_partial_character(void) {
+  char split[] = "S\xc3";
+  prv_drop_partial_character(split, strlen(split));
+  cl_assert_equal_s(split, "S");
+
+  char whole[] = "S\xc3\xa9";
+  prv_drop_partial_character(whole, strlen(whole));
+  cl_assert_equal_s(whole, "S\xc3\xa9");
+
+  char continuation_only[] = "\x80\x80";
+  prv_drop_partial_character(continuation_only, strlen(continuation_only));
+  cl_assert_equal_s(continuation_only, "");
 }
