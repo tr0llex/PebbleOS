@@ -33,14 +33,16 @@ static void prv_set_calories(char *buffer, size_t buffer_size, int32_t current_c
   snprintf(buffer, buffer_size, "%" PRId32, current_calories);
 }
 
-static void prv_set_distance(char *buffer, size_t buffer_size, int32_t current_distance_meters) {
+static void prv_set_distance(char *buffer, size_t buffer_size, int32_t current_distance_meters,
+                             void *i18n_owner) {
   if (current_distance_meters == 0) {
     strncpy(buffer, EN_DASH, buffer_size);
     return;
   }
 
   const int conversion_factor = health_util_get_distance_factor();
-  const char *units_string = health_util_get_distance_string(i18n_noop("mi"), i18n_noop("km"));
+  const char *units_string =
+      i18n_get(health_util_get_distance_string(i18n_noop("mi"), i18n_noop("km")), i18n_owner);
 
   char distance_buffer[HEALTH_WHOLE_AND_DECIMAL_LENGTH];
   health_util_format_whole_and_decimal(distance_buffer, HEALTH_WHOLE_AND_DECIMAL_LENGTH,
@@ -92,7 +94,7 @@ Window *health_activity_detail_card_create(HealthData *health_data) {
                    health_data_current_calories_get(health_data));
 
   prv_set_distance(heading->secondary_value, buffer_len,
-                   health_data_current_distance_meters_get(health_data));
+                   health_data_current_distance_meters_get(health_data), card_data);
 
   HealthDetailSubtitle *subtitle = &card_data->subtitles[card_data->num_subtitles++];
 
