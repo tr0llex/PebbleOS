@@ -1,6 +1,7 @@
 /* SPDX-FileCopyrightText: 2024 Google LLC */
 /* SPDX-License-Identifier: Apache-2.0 */
 
+#include "applib/graphics/utf8.h"
 #include "applib/ui/status_bar_layer.h"
 #include "pbl/util/list.h"
 #include "resource/resource_ids.auto.h"
@@ -103,4 +104,34 @@ void test_status_bar_layer__large_bold_height(void) {
 
   status_bar_layer_set_mode(&status_bar, StatusBarLayerModeClock);
   cl_assert_status_bar_height(status_bar); // back to default
+}
+
+//! A title longer than the buffer must be cut between characters and stay terminated, or the
+//! renderer rejects the whole string and the title disappears.
+void test_status_bar_layer__long_multibyte_title(void) {
+  StatusBarLayer status_bar;
+  status_bar_layer_init(&status_bar);
+
+  // Twelve two-byte characters (U+0416), longer than TITLE_TEXT_BUFFER_SIZE
+  const char *title =
+      "\xd0\x96\xd0\x96\xd0\x96\xd0\x96\xd0\x96\xd0\x96"
+      "\xd0\x96\xd0\x96\xd0\x96\xd0\x96\xd0\x96\xd0\x96";
+  cl_assert(strlen(title) >= TITLE_TEXT_BUFFER_SIZE);
+  status_bar_layer_set_title(&status_bar, title, false, false);
+
+  const char *buffer = status_bar.config.title_text_buffer;
+  cl_assert(strnlen(buffer, TITLE_TEXT_BUFFER_SIZE) < TITLE_TEXT_BUFFER_SIZE);
+  cl_assert(utf8_is_valid_string(buffer));
+  const size_t len = strlen(buffer);
+  cl_assert(len >= strlen(UTF8_ELLIPSIS_STRING));
+  cl_assert_equal_s(&buffer[len - strlen(UTF8_ELLIPSIS_STRING)], UTF8_ELLIPSIS_STRING);
+}
+
+//! A title that fits is copied unchanged.
+void test_status_bar_layer__short_title(void) {
+  StatusBarLayer status_bar;
+  status_bar_layer_init(&status_bar);
+
+  status_bar_layer_set_title(&status_bar, "Settings", false, false);
+  cl_assert_equal_s(status_bar.config.title_text_buffer, "Settings");
 }
