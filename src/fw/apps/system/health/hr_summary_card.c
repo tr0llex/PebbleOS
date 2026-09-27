@@ -192,6 +192,8 @@ Layer *health_hr_summary_card_create(HealthData *health_data) {
   Layer *base_layer = layer_create_with_data(GRectZero, sizeof(HealthHrSummaryCardData));
   HealthHrSummaryCardData *data = layer_get_data(base_layer);
   layer_set_update_proc(base_layer, prv_base_layer_update_proc);
+  // LECO only covers digits and a few Latin capitals
+  const bool translated_units = health_util_unit_is_translated("BPM");
   // set health data
   *data = (HealthHrSummaryCardData){
     .health_data = health_data,
@@ -207,10 +209,12 @@ Layer *health_hr_summary_card_create(HealthData *health_data) {
     .last_updated = health_data_hr_get_last_updated_timestamp(health_data),
 #if DISP_ROWS > LEGACY_2X_DISP_ROWS
     .bpm_font = fonts_get_system_font(FONT_KEY_LECO_32_BOLD_NUMBERS),
-    .units_font = fonts_get_system_font(FONT_KEY_LECO_26_BOLD_NUMBERS_AM_PM),
+    .units_font = fonts_get_system_font(translated_units ? FONT_KEY_GOTHIC_18_BOLD
+                                                         : FONT_KEY_LECO_26_BOLD_NUMBERS_AM_PM),
 #else
     .bpm_font = fonts_get_system_font(FONT_KEY_LECO_26_BOLD_NUMBERS_AM_PM),
-    .units_font = fonts_get_system_font(FONT_KEY_LECO_20_BOLD_NUMBERS),
+    .units_font = fonts_get_system_font(translated_units ? FONT_KEY_GOTHIC_18_BOLD
+                                                         : FONT_KEY_LECO_20_BOLD_NUMBERS),
 #endif
     .timestamp_font = fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
   };

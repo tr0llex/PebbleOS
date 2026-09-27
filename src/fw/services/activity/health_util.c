@@ -11,6 +11,7 @@
 
 #include <limits.h>
 #include <stdio.h>
+#include <string.h>
 
 static void prv_convert_duration_to_hours_and_minutes(int duration_s, int *hours, int *minutes) {
   *hours = (duration_s / SECONDS_PER_HOUR) ?: INT_MIN;
@@ -112,6 +113,12 @@ void health_util_duration_to_hours_and_minutes_text_node(int duration_s, void *i
         i18n_get("min", i18n_owner), units_font, color, container);
     minutes_units_text_node->node.offset.y = units_offset_y;
   }
+}
+
+bool health_util_unit_is_translated(const char *msgid) {
+  char translated[16];
+  i18n_get_with_buffer(msgid, translated, sizeof(translated));
+  return strcmp(translated, msgid) != 0;
 }
 
 void health_util_convert_fraction_to_whole_and_decimal_part(int numerator, int denominator,
