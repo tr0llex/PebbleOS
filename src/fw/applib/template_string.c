@@ -295,9 +295,8 @@ static void prv_append_char(TemplateStringState *state, char c) {
   }
 }
 
-// Suffix columns: [0] singular, [1] plural ("few" for languages like Polish:
-// 2-4), [2] "many" (Polish: 0 and 5+). prv_plural_index() picks the column;
-// two-form languages never select [2].
+// Suffix columns: [0] singular, [1] plural, or "few" in three-form languages, [2] "many".
+// prv_plural_index() picks the column; two-form languages never select [2].
 static const char *const s_second_strings[3][3] = {
   /// Suffixes for seconds with no units
   {i18n_ctx_noop("TmplStringSing", ""), i18n_ctx_noop("TmplStringPlur", ""),
@@ -374,30 +373,50 @@ static const char *const s_year_strings[3][3] = {
 };
 #endif
 
-// Pick the plural suffix column for the active locale.
-//   0 = singular, 1 = plural / "few", 2 = "many"
-// Most languages have a two-form rule (singular vs plural) and never select
-// column 2. Polish has three forms; its rule mirrors the Plural-Forms header
-// in the pl_PL catalog.
+// Plural suffix column: 0 = singular, 1 = plural or "few", 2 = "many"
+typedef int (*PluralRule)(uintmax_t n);
+
+// n%10 in 2..4, except 12..14, is "few"; the rest is "many"
+static int prv_plural_few_or_many(uintmax_t n) {
+  const unsigned n10 = n % 10, n100 = n % 100;
+  return (n10 >= 2 && n10 <= 4 && (n100 < 10 || n100 >= 20)) ? 1 : 2;
+}
+
+// Polish: only 1 is singular, so 21 and 101 are "many"
+static int prv_plural_polish(uintmax_t n) {
+  return (n == 1) ? 0 : prv_plural_few_or_many(n);
+}
+
+// Russian, Ukrainian, Belarusian: 1, 21, 101 are singular, 11 is not
+static int prv_plural_east_slavic(uintmax_t n) {
+  return (n % 10 == 1 && n % 100 != 11) ? 0 : prv_plural_few_or_many(n);
+}
+
+static const struct {
+  char language[2];
+  PluralRule rule;
+} s_plural_rules[] = {
+  {{'p', 'l'}, prv_plural_polish},
+  {{'r', 'u'}, prv_plural_east_slavic},
+  {{'u', 'k'}, prv_plural_east_slavic},
+  {{'b', 'e'}, prv_plural_east_slavic},
+};
+
+PBL_T_STATIC int prv_plural_index_for_locale(const char *locale, intmax_t value) {
+  const uintmax_t n = (value < 0) ? (uintmax_t)(-value) : (uintmax_t)value;
+  for (size_t i = 0; i < ARRAY_LENGTH(s_plural_rules); i++) {
+    if (strncmp(locale, s_plural_rules[i].language, 2) == 0) {
+      return s_plural_rules[i].rule(n);
+    }
+  }
+  // Default two-form rule: 1 -> singular, everything else -> plural.
+  return (n == 1) ? 0 : 1;
+}
+
 static int prv_plural_index(intmax_t value) {
   char locale[ISO_LOCALE_LENGTH];
   sys_i18n_get_locale(locale);
-  uintmax_t n = (value < 0) ? (uintmax_t)(-value) : (uintmax_t)value;
-
-  if (locale[0] == 'p' && locale[1] == 'l') {
-    // Polish: 1 -> one; n%10 in 2..4 (but not n%100 in 12..14) -> few; else many.
-    if (n == 1) {
-      return 0;
-    }
-    unsigned n10 = n % 10, n100 = n % 100;
-    if (n10 >= 2 && n10 <= 4 && (n100 < 10 || n100 >= 20)) {
-      return 1;
-    }
-    return 2;
-  }
-
-  // Default two-form rule: 1 -> singular, everything else -> plural.
-  return (n == 1) ? 0 : 1;
+  return prv_plural_index_for_locale(locale, value);
 }
 
 static void prv_do_conversion(TemplateStringState *state, intmax_t value, int divide, int mod,

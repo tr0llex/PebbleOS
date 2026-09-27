@@ -18,6 +18,7 @@
 
 void prv_template_evaluate_filter(TemplateStringState *state, const char *filter_name,
                                   const char *params);
+int prv_plural_index_for_locale(const char *locale, intmax_t value);
 
 static const char *s_error_strings[] = {
   "Success.",
@@ -915,5 +916,29 @@ void test_template_string__full_test(void) {
       cl_assert_equal_i(err.status, s_full_tests[i].expect_status);
       cl_assert_equal_i(err.index_in_string, s_full_tests[i].expect_index);
     }
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Test plural rules
+
+void test_template_string__plural_rules(void) {
+  static const struct {
+    intmax_t n;
+    int en;
+    int pl;
+    int ru;
+  } s_cases[] = {
+    {0, 1, 2, 2},   {1, 0, 0, 0},   {2, 1, 1, 1},   {4, 1, 1, 1},   {5, 1, 2, 2},  {11, 1, 2, 2},
+    {12, 1, 2, 2},  {14, 1, 2, 2},  {21, 1, 2, 0},  {22, 1, 1, 1},  {25, 1, 2, 2}, {101, 1, 2, 0},
+    {111, 1, 2, 2}, {112, 1, 2, 2}, {122, 1, 1, 1}, {-21, 1, 2, 0},
+  };
+  for (size_t i = 0; i < ARRAY_LENGTH(s_cases); i++) {
+    const intmax_t n = s_cases[i].n;
+    cl_assert_equal_i(prv_plural_index_for_locale("en_US", n), s_cases[i].en);
+    cl_assert_equal_i(prv_plural_index_for_locale("pl_PL", n), s_cases[i].pl);
+    cl_assert_equal_i(prv_plural_index_for_locale("ru_RU", n), s_cases[i].ru);
+    cl_assert_equal_i(prv_plural_index_for_locale("uk_UA", n), s_cases[i].ru);
+    cl_assert_equal_i(prv_plural_index_for_locale("be_BY", n), s_cases[i].ru);
   }
 }
