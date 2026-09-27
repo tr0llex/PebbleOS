@@ -32,6 +32,7 @@ PBL_LOG_MODULE_DEFINE(service_phone_call, CONFIG_SERVICE_PHONE_CALL_LOG_LEVEL);
 //!   know when the phone stops ringing, we don't know what happens after the user accepts/rejects
 
 static bool s_call_in_progress = false;
+static bool s_call_answered = false;
 static PhoneCallSource s_call_source;
 
 // When using Android this is the cookie, when using ANCS this is the NotificationUUID
@@ -126,6 +127,7 @@ static void prv_handle_incoming_call(const PebblePhoneEvent *event) {
   }
 
   s_call_in_progress = true;
+  s_call_answered = false;
   s_call_source = event->source;
   s_call_identifier = event->call_identifier;
 
@@ -164,6 +166,7 @@ static void prv_handle_call_start(void) {
       prv_call_end_common();
       phone_ui_handle_call_end(true /*call accepted*/, false /*disconnected*/);
     } else {
+      s_call_answered = true;
       phone_ui_handle_call_start(prv_can_hangup());
     }
   } else {
@@ -189,8 +192,10 @@ static void prv_handle_call_hide(PebblePhoneEvent *event) {
 
 static void prv_handle_call_end(bool disconnected) {
   if (s_call_in_progress) {
+    // A dropped link is not an ended call: the phone may still be on it
+    const bool call_accepted = s_call_answered && !disconnected;
     prv_call_end_common();
-    phone_ui_handle_call_end(false /*call accepted*/, disconnected);
+    phone_ui_handle_call_end(call_accepted, disconnected);
   } else if (!disconnected) {
     PBL_LOG_DBG("Ignoring end call. A call is not in progress");
   }
