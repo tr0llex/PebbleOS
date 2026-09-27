@@ -35,6 +35,10 @@ static void prv_add_session(ActivitySession *session) {
 
 // ---------------------------------------------------------------------------------------
 bool activity_get_sessions(uint32_t *session_entries, ActivitySession *sessions) {
+  // Slots past the returned count are not valid; make any read of them visible
+  for (uint32_t i = s_num_sessions; i < *session_entries; i++) {
+    sessions[i] = (ActivitySession){.type = ActivitySessionType_Run, .ongoing = true};
+  }
   memcpy(sessions, s_sessions, s_num_sessions * sizeof(ActivitySession));
   *session_entries = s_num_sessions;
   return true;
