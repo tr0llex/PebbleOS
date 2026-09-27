@@ -42,8 +42,13 @@ void activity_sessions_prv_delete_activity_session(ActivitySession *session) {
 void activity_algorithm_enable_activity_tracking(bool enable) {
 }
 
+static ActivitySession s_activity_sessions[2];
+static uint32_t s_num_activity_sessions;
 bool activity_get_sessions(uint32_t *session_entries, ActivitySession *sessions) {
-  return false;
+  const uint32_t n = MIN(*session_entries, s_num_activity_sessions);
+  memcpy(sessions, s_activity_sessions, n * sizeof(ActivitySession));
+  *session_entries = n;
+  return true;
 }
 
 uint8_t activity_prefs_get_age_years(void) {
@@ -176,6 +181,8 @@ static void prv_inc_time(int seconds) {
 
 // ---------------------------------------------------------------------------------------
 void test_workout_service__initialize(void) {
+  s_num_activity_sessions = 0;
+  s_saved_session = (ActivitySession){};
   fake_rtc_init(0, 0);
 
   workout_service_reset();
@@ -843,4 +850,24 @@ void test_workout_service__abandon_workout(void) {
   prv_inc_time(5 * SECONDS_PER_MINUTE);
   prv_abandon_workout_timer_callback(NULL);
   cl_assert_equal_b(workout_service_is_workout_ongoing(), false);
+}
+
+// ---------------------------------------------------------------------------------------
+// Starting a workout ends and saves an automatically detected session that is still ongoing
+void test_workout_service__start_ends_ongoing_automatic_session(void) {
+  s_activity_sessions[0] = (ActivitySession){
+    .start_utc = 10,
+    .length_min = 10,
+    .type = ActivitySessionType_Walk,
+    .ongoing = true,
+  };
+  s_num_activity_sessions = 1;
+
+  cl_assert(workout_service_start_workout(ActivitySessionType_Run));
+
+  cl_assert_equal_i(s_saved_session.type, ActivitySessionType_Walk);
+  cl_assert_equal_i(s_saved_session.start_utc, 10);
+  cl_assert_equal_b(s_saved_session.ongoing, false);
+
+  workout_service_stop_workout();
 }
