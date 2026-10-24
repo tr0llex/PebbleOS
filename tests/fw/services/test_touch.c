@@ -23,6 +23,7 @@ void kernel_free(void *p) {
 
 // Declared in syscall/syscall.h; in the test build DEFINE_SYSCALL is a plain function.
 void sys_touch_set_raw_subscribed(bool subscribed);
+void sys_touch_reset(void);
 
 // sys_touch_set_raw_subscribed marks the calling task; make it settable.
 static PebbleTask s_current_task = PebbleTask_App;
@@ -592,4 +593,31 @@ void test_touch__event_abi_unchanged(void) {
   cl_assert_equal_i(offsetof(TouchEvent, x), 2);
   cl_assert_equal_i(offsetof(TouchEvent, y), 4);
   cl_assert(sizeof(TouchEvent) <= 9);
+}
+
+void test_touch__subscription_reset_releases_active_touch(void) {
+  touch_handle_update(TouchState_FingerDown, 15, 100);
+  fake_event_reset_count();
+
+  // Raw subscribers reset the shared state. Kernel listeners must still receive
+  // Liftoff, otherwise the backlight hold acquired on Touchdown never ends.
+  sys_touch_reset();
+  cl_assert_equal_i(fake_event_get_count(), 1);
+  prv_assert_touch_event(TouchEvent_Liftoff, 15, 100);
+
+  // A repeated reset and the later hardware release must not double-release it.
+  sys_touch_reset();
+  touch_handle_update(TouchState_FingerUp, 15, 100);
+  cl_assert_equal_i(fake_event_get_count(), 1);
+}
+
+void test_touch__subscription_reset_releases_injected_touch(void) {
+  cl_assert(touch_handle_injected_update(TouchInjectPhase_Begin, 10, 20));
+  fake_event_reset_count();
+  sys_touch_reset();
+  cl_assert_equal_i(fake_event_get_count(), 1);
+  prv_assert_touch_event(TouchEvent_Liftoff, 10, 20);
+  cl_assert(touch_injection_is_available());
+  cl_assert(!touch_handle_injected_update(TouchInjectPhase_End, 10, 20));
+  cl_assert_equal_i(fake_event_get_count(), 1);
 }

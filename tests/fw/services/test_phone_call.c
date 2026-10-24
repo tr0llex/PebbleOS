@@ -35,7 +35,9 @@ void pp_answer_call(uint32_t cookie) {
 void pp_decline_call(uint32_t cookie) {
 }
 
+static unsigned s_phone_poll_count;
 void pp_get_phone_state(void) {
+  s_phone_poll_count++;
 }
 
 void pp_get_phone_state_set_enabled(bool enabled) {
@@ -241,4 +243,54 @@ void test_phone_call__ancs_hide(void) {
 
   prv_call_hide(ANCS_CALL_UID);
   ASSERT_LAST_CALL(phone_ui_handle_call_hide);
+}
+
+void test_phone_call__answered_call_ends_without_declining(void) {
+  prv_put_incoming_call_event(PhoneCallSource_PP, true);
+  prv_call_start();
+  prv_call_end();
+  cl_assert(phone_ui_handle_call_end_fake.arg0_val);
+  cl_assert(!phone_ui_handle_call_end_fake.arg1_val);
+  // A following unanswered call must not inherit the previous conversation.
+  prv_put_incoming_call_event(PhoneCallSource_PP, true);
+  prv_call_end();
+  cl_assert(!phone_ui_handle_call_end_fake.arg0_val);
+}
+
+void test_phone_call__answered_call_disconnect_keeps_disconnect_state(void) {
+  prv_put_incoming_call_event(PhoneCallSource_PP, true);
+  prv_call_start();
+  prv_put_comm_session_event(false);
+  cl_assert(!phone_ui_handle_call_end_fake.arg0_val);
+  cl_assert(phone_ui_handle_call_end_fake.arg1_val);
+}
+
+extern void prv_poll_phone_for_status(void *context);
+
+void test_phone_call__queued_watchdog_cannot_poll_after_end(void) {
+  prv_put_incoming_call_event(PhoneCallSource_ANCS_Legacy, true);
+  s_phone_poll_count = 0;
+  prv_poll_phone_for_status(nullptr);
+  cl_assert_equal_i(s_phone_poll_count, 1);
+  prv_call_end();
+  // A callback already queued on SystemTask survives new_timer_stop().
+  prv_poll_phone_for_status(nullptr);
+  cl_assert_equal_i(s_phone_poll_count, 1);
+}
+
+void test_phone_call__queued_watchdog_cannot_poll_after_decline(void) {
+  prv_put_incoming_call_event(PhoneCallSource_ANCS_Legacy, true);
+  phone_call_decline();
+  s_phone_poll_count = 0;
+  prv_poll_phone_for_status(nullptr);
+  cl_assert_equal_i(s_phone_poll_count, 0);
+}
+
+void test_phone_call__queued_watchdog_cannot_poll_android_call(void) {
+  prv_put_incoming_call_event(PhoneCallSource_ANCS_Legacy, true);
+  prv_call_end();
+  prv_put_incoming_call_event(PhoneCallSource_PP, true);
+  s_phone_poll_count = 0;
+  prv_poll_phone_for_status(nullptr);
+  cl_assert_equal_i(s_phone_poll_count, 0);
 }

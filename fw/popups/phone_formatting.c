@@ -14,7 +14,7 @@
 // Turn every word after the first one into an initial.
 // e.g. Katharine Claire Berry -> Katharine C. B.
 void phone_format_caller_name(const char *full_name, char *destination, size_t length) {
-  char *space = strchr(full_name, ' ');
+  const char *space = strchr(full_name, ' ');
   // If there are no spaces, just use the whole thing and bail.
   if (!space) {
     strncpy(destination, full_name, length);

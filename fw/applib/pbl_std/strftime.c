@@ -130,7 +130,7 @@ size_t localized_strftime(char *restrict dest_str, size_t maxsize, const char *r
 
   while (left) {
     // Copy up to the next '%'
-    char *ptr = strchr(fmt, '%');
+    const char *ptr = strchr(fmt, '%');
     if (ptr == nullptr) {
       // Get the ending \0 of the string
       // Equivalent to ptr = fmt + strlen(fmt), but a bit faster/smaller
@@ -163,8 +163,9 @@ size_t localized_strftime(char *restrict dest_str, size_t maxsize, const char *r
 
     // Process field width
     if (*fmt >= '1' && *fmt <= '9') {
-      width = strtol(fmt, &ptr, 10);
-      fmt = ptr;
+      char *width_end;
+      width = strtol(fmt, &width_end, 10);
+      fmt = width_end;
     }
 
     // Process modifiers (SU)
