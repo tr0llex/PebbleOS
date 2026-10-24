@@ -182,7 +182,7 @@
     }, {
         "name": "StatusBarLayer",
         "size_2x": 112,
-        "size_3x_padding": 80,
+        "size_3x_padding": 60,
         "size_3x": 200,
         "dependencies": ["Layer"],
         "_comment": "Generously padded because it's not feature complete yet"
@@ -242,7 +242,7 @@
         "_comment": "Generously padded because it's not feature complete yet (only 3.x)"
     }, {
         "name": "ExpandableDialog",
-        "size_3x_padding": 36,
+        "size_3x_padding": 40,
         "size_3x": 1296,
         "dependencies": ["Dialog", "TextLayer", "ScrollLayer", "ActionBarLayer", "Layer"],
         "_comment": "Generously padded because it's not feature complete yet (only 3.x)"
@@ -254,7 +254,7 @@
         "_comment": "Generously padded because it's not feature complete yet (only 3.x)"
     }, {
         "name": "VoiceWindow",
-        "size_3x_padding": 31,
+        "size_3x_padding": 35,
         "size_3x": 2384,
         "dependencies": ["TranscriptionDialog", "Layer", "Layer", "StatusBarLayer", "TextLayer", 
                          "KinoLayer", "Window", "EventServiceInfo"],

@@ -128,7 +128,9 @@ typedef struct SystemInformationData {
   // Ensure that OTP values are null-terminated
   char serial_string[MFG_SERIAL_NUMBER_SIZE + 1];
   char hw_version_string[MFG_HW_VERSION_SIZE + 1];
-  char uptime_string[16]; // "xxd xxh xxm xxs"
+  // Translated unit letters can take two bytes each, and then 16 bytes no
+  // longer hold a week of uptime.
+  char uptime_string[64]; // Four numbers and translated unit suffixes.
   char const *subtitle_text[SystemInformationItem_Count];
   char language_string[16];
 } SystemInformationData;
@@ -224,8 +226,15 @@ static void prv_populate_uptime_string(SystemInformationData *data) {
   uint32_t days, hours, minutes, seconds;
   pbl_time_split_seconds(seconds_since_reboot, &days, &hours, &minutes, &seconds);
 
-  sniprintf(data->uptime_string, sizeof(data->uptime_string),
-            "%" PRIu32 "d %" PRIu32 "h %" PRIu32 "m %" PRIu32 "s", days, hours, minutes, seconds);
+  // Translate suffixes, never a printf format supplied by a language pack.
+  char day_unit[8], hour_unit[8], minute_unit[8], second_unit[8];
+  i18n_ctx_get_with_buffer("Uptime", "d", day_unit, sizeof(day_unit));
+  i18n_ctx_get_with_buffer("Uptime", "h", hour_unit, sizeof(hour_unit));
+  i18n_ctx_get_with_buffer("Uptime", "m", minute_unit, sizeof(minute_unit));
+  i18n_ctx_get_with_buffer("Uptime", "s", second_unit, sizeof(second_unit));
+  sniprintf(data->uptime_string, sizeof(data->uptime_string), "%u%s %u%s %u%s %u%s",
+            (unsigned int)days, day_unit, (unsigned int)hours, hour_unit, (unsigned int)minutes,
+            minute_unit, (unsigned int)seconds, second_unit);
 }
 
 static void prv_information_draw_row_callback(GContext *ctx, const Layer *cell_layer,

@@ -87,3 +87,16 @@ void test_status_bar_layer__large_bold_height(void) {
   status_bar_layer_set_mode(&status_bar, StatusBarLayerModeClock);
   cl_assert_status_bar_height(status_bar); // back to default
 }
+
+// Keep complete UTF-8 characters when a title exceeds the ABI-sized buffer.
+void test_status_bar_layer__utf8_title(void) {
+  StatusBarLayer bar;
+  status_bar_layer_init(&bar);
+  const char *title = "Дополнительные настройки уведомлений";
+  status_bar_layer_set_title(&bar, title, false, false);
+  cl_assert_equal_s(status_bar_layer_get_title(&bar), "Дополнительные нас…");
+  status_bar_layer_set_title(&bar, "Настройки", false, false);
+  cl_assert_equal_s(status_bar_layer_get_title(&bar), "Настройки");
+  status_bar_layer_set_title(&bar, "", false, false);
+  cl_assert_equal_s(status_bar_layer_get_title(&bar), "");
+}
