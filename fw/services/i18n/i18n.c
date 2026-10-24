@@ -176,13 +176,13 @@ static void prv_lookup(const char *msgid, struct DomainBinding *db, size_t *rlen
 
 static bool prv_get_property(const char *header, const char *name, char *buffer, size_t size) {
   // Isolate the language name
-  char *str = strstr(header, name);
+  const char *str = strstr(header, name);
   if (str == nullptr) { // strstr failed
     return false;
   }
   str += strlen(name);
 
-  char *end = strchr(str, '\n');
+  const char *end = strchr(str, '\n');
   if (end == nullptr || (size_t)(end - str) >= size) {
     return false;
   }

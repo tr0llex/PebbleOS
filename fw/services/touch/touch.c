@@ -189,7 +189,9 @@ PBL_SYSCALL(void, sys_touch_set_raw_subscribed, (VAL, bool, subscribed)) {
 }
 
 PBL_SYSCALL(void, sys_touch_reset) {
-  touch_reset();
+  // Raw subscriptions can change during a touch. Notify kernel listeners before
+  // forgetting the finger, so their backlight hold cannot outlive the gesture.
+  touch_release_active();
 }
 
 void touch_set_backlight_enabled(bool enabled) {

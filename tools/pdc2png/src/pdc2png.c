@@ -42,7 +42,7 @@ const uint8_t *resource_get_builtin_bytes(ResAppNum app_num, uint32_t resource_i
 
 // Get the path of the filename before the extension
 size_t prv_get_base_path(const char *filename, char *base) {
-  char *ext = strrchr(filename, '.');
+  const char *ext = strrchr(filename, '.');
 
   size_t len;
   if (ext == NULL) {
