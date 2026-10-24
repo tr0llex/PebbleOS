@@ -83,6 +83,22 @@ const char *alarm_get_string_for_kind(AlarmKind kind, bool all_caps) {
 // Setup and Teardown
 ////////////////////////////////////
 
+static bool s_translate_sun_events;
+
+const char *i18n_get(const char *msgid, const void *owner) {
+  const char *context = strchr(msgid, '\4');
+  const char *message = context ? context + 1 : msgid;
+  if (s_translate_sun_events) {
+    if (strcmp(message, "Sunrise") == 0) {
+      return "Morning";
+    }
+    if (strcmp(message, "Sunset") == 0) {
+      return "Evening";
+    }
+  }
+  return message;
+}
+
 static GContext s_ctx;
 static FrameBuffer *fb = nullptr;
 
@@ -91,6 +107,7 @@ GContext *graphics_context_get_current_context(void) {
 }
 
 void test_timeline_layouts__initialize(void) {
+  s_translate_sun_events = false;
   fb = malloc(sizeof(FrameBuffer));
   framebuffer_init(fb, &(GSize){DISP_COLS, DISP_ROWS});
 
@@ -406,6 +423,62 @@ void test_timeline_layouts__weather_pin_kind(void) {
   unknown_kind.weather_pin_kind = 0xFF;
   prv_check_renders_like(&unknown_kind, &reference, 0);
   prv_check_renders_like(&unknown_kind, &reference, 1);
+}
+
+void test_timeline_layouts__legacy_sun_events_are_translated(void) {
+  const struct {
+    const char *original;
+    const char *translated;
+    WeatherPinKind kind;
+  } cases[] = {
+    {"Sunrise", "Morning", WeatherPinKind_Sunrise},
+    {"Sunset", "Evening", WeatherPinKind_Sunset},
+  };
+  s_translate_sun_events = true;
+  for (size_t i = 0; i < ARRAY_LENGTH(cases); ++i) {
+    TimelineLayoutTestConfig reference = s_weather_config;
+    reference.title = cases[i].translated;
+    reference.weather_pin_kind = WeatherPinKind_None;
+    TimelineLayoutTestConfig legacy = reference;
+    legacy.title = cases[i].original;
+    TimelineLayoutTestConfig typed = legacy;
+    typed.title = "Ignored title";
+    typed.weather_pin_kind = cases[i].kind;
+    for (size_t page = 0; page < 2; ++page) {
+      prv_check_renders_like(&legacy, &reference, page);
+      prv_check_renders_like(&typed, &reference, page);
+    }
+  }
+}
+
+void test_timeline_layouts__custom_sun_titles_are_preserved(void) {
+  const struct {
+    const char *title;
+    LayoutId layout;
+    uint8_t kind;
+  } cases[] = {
+    {"Sunset hike", LayoutIdWeather, WeatherPinKind_None},
+    {"Sunrise walk", LayoutIdWeather, WeatherPinKind_None},
+    {"Sunset", LayoutIdWeather, 0xFF},
+    {"Sunset", LayoutIdCalendar, WeatherPinKind_None},
+  };
+  const size_t size = s_ctx.dest_bitmap.row_size_bytes * s_ctx.dest_bitmap.bounds.size.h;
+  uint8_t *expected = malloc(size);
+  for (size_t i = 0; i < ARRAY_LENGTH(cases); ++i) {
+    TimelineLayoutTestConfig config = s_weather_config;
+    config.layout_id = cases[i].layout;
+    config.title = cases[i].title;
+    config.weather_pin_kind = cases[i].kind;
+    for (size_t page = 0; page < 2; ++page) {
+      s_translate_sun_events = false;
+      prv_construct_and_render_layout(&config, page);
+      memcpy(expected, s_ctx.dest_bitmap.addr, size);
+      s_translate_sun_events = true;
+      prv_construct_and_render_layout(&config, page);
+      cl_assert(memcmp(expected, s_ctx.dest_bitmap.addr, size) == 0);
+    }
+  }
+  free(expected);
 }
 
 static void prv_construct_and_render_sports_layout(GameState state, size_t num_down_clicks) {

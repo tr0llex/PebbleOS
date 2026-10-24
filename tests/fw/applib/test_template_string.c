@@ -2,6 +2,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 
 #include <limits.h>
+#include <stdint.h>
 #include <string.h>
 
 #include <pbl/util/size.h>
@@ -71,7 +72,13 @@ static void prv_state_init(void) {
   s_cond.eval_time = INT_MAX;
 }
 
+static const char *s_locale = "en_US";
+void sys_i18n_get_locale(char *locale) {
+  strcpy(locale, s_locale);
+}
+
 void test_template_string__initialize(void) {
+  s_locale = "en_US";
 }
 
 void test_template_string__cleanup(void) {
@@ -912,4 +919,27 @@ void test_template_string__full_test(void) {
       cl_assert_equal_i(err.index_in_string, s_full_tests[i].expect_index);
     }
   }
+}
+
+extern int prv_plural_index(intmax_t value);
+
+void test_template_string__east_slavic_plural_boundaries(void) {
+  const char *locales[] = {"ru_RU", "uk_UA", "be_BY"};
+  const int values[] = {0, 1, 2, 4, 5, 11, 12, 14, 21, 22, 24, 25, 101, 111, 112};
+  const int forms[] = {2, 0, 1, 1, 2, 2, 2, 2, 0, 1, 1, 2, 0, 2, 2};
+  for (unsigned l = 0; l < ARRAY_LENGTH(locales); l++) {
+    s_locale = locales[l];
+    for (unsigned i = 0; i < ARRAY_LENGTH(values); i++) {
+      cl_assert_equal_i(prv_plural_index(values[i]), forms[i]);
+      cl_assert_equal_i(prv_plural_index(-values[i]), forms[i]);
+    }
+    cl_assert_equal_i(prv_plural_index(INTMAX_MIN), 2);
+  }
+  s_locale = "pl_PL";
+  cl_assert_equal_i(prv_plural_index(1), 0);
+  cl_assert_equal_i(prv_plural_index(21), 2);
+  cl_assert_equal_i(prv_plural_index(22), 1);
+  s_locale = "en_US";
+  cl_assert_equal_i(prv_plural_index(-1), 0);
+  cl_assert_equal_i(prv_plural_index(INTMAX_MIN), 1);
 }

@@ -380,10 +380,26 @@ static const char *const s_year_strings[3][3] = {
 // Most languages have a two-form rule (singular vs plural) and never select
 // column 2. Polish has three forms; its rule mirrors the Plural-Forms header
 // in the pl_PL catalog.
-static int prv_plural_index(intmax_t value) {
+PBL_T_STATIC int prv_plural_index(intmax_t value) {
   char locale[ISO_LOCALE_LENGTH];
   sys_i18n_get_locale(locale);
-  uintmax_t n = (value < 0) ? (uintmax_t)(-value) : (uintmax_t)value;
+  // Convert before negating: INTMAX_MIN has no positive signed counterpart.
+  uintmax_t n = (value < 0) ? -(uintmax_t)value : (uintmax_t)value;
+
+  if ((locale[0] == 'r' && locale[1] == 'u') || // Russian
+      (locale[0] == 'u' && locale[1] == 'k') || // Ukrainian
+      (locale[0] == 'b' && locale[1] == 'e')) { // Belarusian
+    // East Slavic: n%10 == 1 (but not n%100 == 11) -> one;
+    // n%10 in 2..4 (but not n%100 in 12..14) -> few; else many.
+    unsigned n10 = n % 10, n100 = n % 100;
+    if (n10 == 1 && n100 != 11) {
+      return 0;
+    }
+    if (n10 >= 2 && n10 <= 4 && (n100 < 10 || n100 >= 20)) {
+      return 1;
+    }
+    return 2;
+  }
 
   if (locale[0] == 'p' && locale[1] == 'l') {
     // Polish: 1 -> one; n%10 in 2..4 (but not n%100 in 12..14) -> few; else many.

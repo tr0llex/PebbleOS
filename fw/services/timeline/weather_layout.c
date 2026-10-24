@@ -44,8 +44,18 @@ static bool prv_should_display_time(const LayoutLayer *layout) {
 }
 
 static const char *prv_get_kind_title(const TimelineLayout *layout) {
-  const WeatherPinKind kind = attribute_get_uint8(layout->layout_layer.attributes,
-                                                  AttributeIdWeatherPinKind, WeatherPinKind_None);
+  WeatherPinKind kind = attribute_get_uint8(layout->layout_layer.attributes,
+                                            AttributeIdWeatherPinKind, WeatherPinKind_None);
+  if (kind == WeatherPinKind_None) {
+    // Older phone clients omit the kind and send these literal English titles.
+    // Translate only exact sun-event names; preserve custom forecast titles.
+    const char *title = attribute_get_string(layout->layout_layer.attributes, AttributeIdTitle, "");
+    if (strcmp(title, "Sunrise") == 0) {
+      kind = WeatherPinKind_Sunrise;
+    } else if (strcmp(title, "Sunset") == 0) {
+      kind = WeatherPinKind_Sunset;
+    }
+  }
   switch (kind) {
     case WeatherPinKind_Sunrise:
       return i18n_get("Sunrise", layout);
