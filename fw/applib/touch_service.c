@@ -15,16 +15,12 @@
 #include <syscall/syscall.h>
 
 //! @return the per-task touch service state, or NULL if the current task is
-//! not permitted to use the touch service (e.g. background workers, or
-//! watchfaces). Callers must no-op when this returns NULL.
+//! not permitted to use the touch service (background workers).
+//! Callers must no-op when this returns NULL.
 static TouchServiceState *prv_get_state(void) {
   PebbleTask task = pebble_task_get_current();
   switch (task) {
     case PebbleTask_App:
-      // Touch is reserved for watchapps; watchfaces must not consume it.
-      if (sys_app_is_watchface()) {
-        return nullptr;
-      }
       return app_state_get_touch_service_state();
     case PebbleTask_KernelMain:
       return kernel_applib_get_touch_service_state();
@@ -69,6 +65,10 @@ static void prv_update_subscription(TouchServiceState *state) {
 }
 
 void touch_service_set_system_handler(TouchServiceHandler handler, void *context) {
+  // Watchfaces may opt into raw events, but never synthesize menu button presses.
+  if (pebble_task_get_current() == PebbleTask_App && sys_app_is_watchface()) {
+    return;
+  }
   TouchServiceState *state = prv_get_state();
   if (!state) {
     return;
