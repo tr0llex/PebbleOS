@@ -473,3 +473,32 @@ void test_timeline_item__find_reply_action(void) {
   cl_assert_equal_p(timeline_item_find_reply_action(&item), nullptr);
   free(action_list);
 }
+
+static void prv_assert_title_roundtrip(const char *title, const char *expected,
+                                       TimelineItemType type) {
+  AttributeList attrs = {};
+  attribute_list_add_cstring(&attrs, AttributeIdTitle, title);
+  TimelineItem *item =
+      timeline_item_create_with_attributes(0, 0, type, LayoutIdGeneric, &attrs, nullptr);
+  cl_assert(item);
+  SerializedTimelineItemHeader header;
+  timeline_item_serialize_header(item, &header);
+  uint8_t payload[256];
+  cl_assert(timeline_item_serialize_payload(item, payload, sizeof(payload)) > 0);
+  TimelineItem copy = {};
+  cl_assert(timeline_item_deserialize_item(&copy, &header, payload));
+  cl_assert_equal_s(attribute_find(&copy.attr_list, AttributeIdTitle)->cstring, expected);
+  timeline_item_free_allocated_buffer(&copy);
+  timeline_item_destroy(item);
+  attribute_list_destroy_list(&attrs);
+}
+
+void test_timeline_item__leading_emoji_only_for_calendar_items(void) {
+  prv_assert_title_roundtrip("📅 Meeting", "Meeting", TimelineItemTypePin);
+  prv_assert_title_roundtrip("📅 Meeting", "📅 Meeting", TimelineItemTypeNotification);
+  prv_assert_title_roundtrip("Meeting 📅", "Meeting 📅", TimelineItemTypePin);
+  prv_assert_title_roundtrip("📅", "📅", TimelineItemTypePin);
+  prv_assert_title_roundtrip("→ Meeting", "→ Meeting", TimelineItemTypePin);
+  prv_assert_title_roundtrip("1️⃣ Meeting", "Meeting", TimelineItemTypeReminder);
+  prv_assert_title_roundtrip("👩‍💻 Meeting", "Meeting", TimelineItemTypePin);
+}

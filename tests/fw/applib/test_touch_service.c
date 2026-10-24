@@ -31,13 +31,15 @@ void event_service_client_unsubscribe(EventServiceInfo *info) {
 // Task / state plumbing so prv_get_state() resolves to our test state
 //////////////////////////////////////////
 static TouchServiceState s_state;
+static bool s_watchface;
+static PebbleTask s_task;
 
 PebbleTask pebble_task_get_current(void) {
-  return PebbleTask_App;
+  return s_task;
 }
 
 bool sys_app_is_watchface(void) {
-  return false;
+  return s_watchface;
 }
 
 TouchServiceState *app_state_get_touch_service_state(void) {
@@ -123,6 +125,9 @@ static void prv_deliver_touch(TouchEventType type, int16_t x, int16_t y) {
 // setup / teardown
 //////////////////////////////////////////
 void test_touch_service__initialize(void) {
+  s_watchface = false;
+  s_task = PebbleTask_App;
+  s_raw_subscribed = false;
   s_subscribe_count = 0;
   s_unsubscribe_count = 0;
   s_subscribed_info = nullptr;
@@ -234,4 +239,26 @@ void test_touch_service__unsubscribe_keeps_system_slot(void) {
   cl_assert(s_state.system_handler == prv_system_handler);
   cl_assert(s_state.subscribed);
   cl_assert_equal_i(s_unsubscribe_count, 0);
+}
+
+void test_touch_service__watchface_raw_input_without_system_navigation(void) {
+  s_watchface = true;
+  touch_service_set_system_handler(prv_system_handler, &s_system_marker);
+  cl_assert_equal_i(s_subscribe_count, 0);
+  touch_service_subscribe(prv_raw_handler, &s_raw_marker);
+  cl_assert(s_raw_subscribed);
+  prv_deliver_touch(TouchEvent_Touchdown, 170, 114);
+  prv_deliver_touch(TouchEvent_Liftoff, 30, 114);
+  cl_assert_equal_i(s_raw_rec.calls, 2);
+  cl_assert_equal_i(s_system_rec.calls, 0);
+  touch_service_unsubscribe();
+  cl_assert(!s_raw_subscribed);
+  cl_assert_equal_i(s_unsubscribe_count, 1);
+}
+
+void test_touch_service__worker_cannot_subscribe(void) {
+  s_task = PebbleTask_Worker;
+  touch_service_subscribe(prv_raw_handler, nullptr);
+  cl_assert(!s_raw_subscribed);
+  cl_assert_equal_i(s_subscribe_count, 0);
 }
